@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: amazon-scraper-api
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_PATH
+        value: /opt/render/project/data
+      - key: CACHE_TTL_MINUTES
+        value: 30
+      - key: JOB_TIMEOUT_MINUTES
+        value: 10
+      - key: MAX_CONCURRENT_JOBS
+        value: 2
+    disk:
+      name: scraper-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
+

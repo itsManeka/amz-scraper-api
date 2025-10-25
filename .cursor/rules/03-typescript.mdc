@@ -1,0 +1,262 @@
+---
+title: TypeScript Best Practices
+description: Regras e convenções de TypeScript para o projeto
+tags: [typescript, code-quality, types]
+---
+
+# TypeScript Best Practices
+
+## Strict Mode
+
+Sempre use strict mode (já configurado no `tsconfig.json`):
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true
+  }
+}
+```
+
+## Tipos vs Interfaces
+
+**Use `interface` para:**
+- Contratos públicos
+- Shapes de objetos que podem ser estendidos
+- Definições de API
+
+**Use `type` para:**
+- Unions, intersections, primitivos
+- Tipos complexos e compostos
+- Tipos utilitários
+
+```typescript
+// ✅ CORRETO: Interface para contrato
+export interface IProductRepository {
+    getProductByAsin(asin: string): Promise<Product>;
+}
+
+// ✅ CORRETO: Type para unions
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+// ✅ CORRETO: Type para composição
+export type ErrorResponse = {
+    error: {
+        message: string;
+        type: string;
+        statusCode: number;
+    };
+};
+```
+
+## Imutabilidade
+
+**Sempre use `readonly` para propriedades que não devem mudar:**
+
+```typescript
+// ✅ CORRETO
+export class Product {
+    readonly asin: string;
+    readonly promoCode: PromoCode | null;
+}
+
+// ❌ ERRADO
+export class Product {
+    asin: string;
+    promoCode: PromoCode | null;
+}
+```
+
+**Use `Object.freeze` para arrays imutáveis:**
+
+```typescript
+// ✅ CORRETO
+this.asins = Object.freeze([...data.asins]);
+
+// ❌ ERRADO
+this.asins = data.asins;
+```
+
+## Evite `any`
+
+```typescript
+// ❌ ERRADO
+function processData(data: any): any {
+    return data;
+}
+
+// ✅ CORRETO
+function processData<T>(data: T): T {
+    return data;
+}
+
+// ✅ CORRETO (quando tipo é realmente desconhecido)
+function processData(data: unknown): void {
+    if (typeof data === 'string') {
+        console.log(data.toUpperCase());
+    }
+}
+```
+
+## Null vs Undefined
+
+**Use `null` explicitamente quando valor pode estar ausente:**
+
+```typescript
+// ✅ CORRETO
+export class Product {
+    readonly promoCode: PromoCode | null;
+}
+
+// ❌ EVITE
+export class Product {
+    readonly promoCode?: PromoCode; // undefined implícito
+}
+```
+
+## Async/Await
+
+**Sempre use async/await, nunca callbacks ou promises chains:**
+
+```typescript
+// ✅ CORRETO
+async execute(asin: string): Promise<Product> {
+    try {
+        const html = await this.httpClient.get(url);
+        const product = await this.parser.parse(html);
+        return product;
+    } catch (error) {
+        throw new ParsingError('Failed to parse product');
+    }
+}
+
+// ❌ ERRADO
+execute(asin: string): Promise<Product> {
+    return this.httpClient.get(url)
+        .then(html => this.parser.parse(html))
+        .catch(error => {
+            throw new ParsingError('Failed to parse product');
+        });
+}
+```
+
+## Error Handling
+
+**Sempre tipifique errors em catch blocks:**
+
+```typescript
+// ✅ CORRETO
+try {
+    await doSomething();
+} catch (error) {
+    if (error instanceof HttpError) {
+        console.error('HTTP Error:', error.statusCode);
+    } else if (error instanceof Error) {
+        console.error('Error:', error.message);
+    } else {
+        console.error('Unknown error:', error);
+    }
+}
+
+// ❌ ERRADO
+try {
+    await doSomething();
+} catch (error) {
+    console.error(error.message); // error é 'unknown', pode não ter message
+}
+```
+
+## Visibility Modifiers
+
+```typescript
+// ✅ CORRETO: Use visibilidade apropriada
+export class MyClass {
+    private readonly internalState: string;
+    protected helperMethod(): void {}
+    public publicMethod(): void {}
+}
+
+// ❌ ERRADO: Tudo público por padrão
+export class MyClass {
+    internalState: string;
+    helperMethod(): void {}
+    publicMethod(): void {}
+}
+```
+
+## Generic Constraints
+
+```typescript
+// ✅ CORRETO: Use constraints quando necessário
+async getJob<T extends Promotion | Product>(jobId: string): Promise<Job<T>> {
+    // ...
+}
+
+// ❌ ERRADO: Generic muito amplo
+async getJob<T>(jobId: string): Promise<Job<T>> {
+    // ...
+}
+```
+
+## Type Guards
+
+```typescript
+// ✅ CORRETO: Use type guards
+function isProductNotFoundError(error: Error): error is ProductNotFoundError {
+    return error instanceof ProductNotFoundError;
+}
+
+if (isProductNotFoundError(error)) {
+    console.log('ASIN:', error.asin); // TypeScript sabe que tem .asin
+}
+```
+
+## Never Use
+
+❌ **Nunca use:**
+- `var` (use `const` ou `let`)
+- `Function` type (use arrow function type)
+- `Object` type (use `object` ou type específico)
+- `namespace` (use ES modules)
+- `module` (use ES modules)
+- Type assertions com `as any`
+
+## Naming Conventions
+
+```typescript
+// Classes, Interfaces, Types: PascalCase
+class ProductRepository implements IProductRepository {}
+type JobStatus = 'pending' | 'running';
+
+// Functions, Variables: camelCase
+const getUserData = () => {};
+let isActive = true;
+
+// Constants: UPPER_SNAKE_CASE
+const MAX_CONCURRENT_JOBS = 2;
+const DEFAULT_TIMEOUT = 30000;
+
+// Private properties: prefix com _
+class MyClass {
+    private _internalState: string;
+}
+```
+
+## JSDoc Comments
+
+**Documente APIs públicas:**
+
+```typescript
+/**
+ * Retrieves product information by ASIN
+ * @param asin - Amazon Standard Identification Number (10 alphanumeric characters)
+ * @returns Promise resolving to Product entity
+ * @throws {ProductNotFoundError} If product is not found
+ * @throws {HttpError} If HTTP request fails
+ */
+async getProduct(asin: string): Promise<Product> {
+    // ...
+}
+```

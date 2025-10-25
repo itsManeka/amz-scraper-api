@@ -1,0 +1,299 @@
+---
+title: Testing Guidelines
+description: Regras e padrões para testes com Jest
+tags: [testing, jest, tdd, quality]
+---
+
+# Testing Guidelines
+
+## Estrutura de Testes
+
+**Organize testes espelhando a estrutura do código:**
+
+```
+src/
+├── domain/
+│   └── entities/
+│       └── Product.ts
+└── __tests__/
+    └── domain/
+        └── entities/
+            └── Product.test.ts
+```
+
+## Naming Conventions
+
+```typescript
+// ✅ CORRETO
+describe('Product', () => {
+    describe('constructor', () => {
+        it('should create a valid Product instance', () => {});
+        it('should throw error if ASIN is invalid', () => {});
+    });
+    
+    describe('hasPromoCode', () => {
+        it('should return true when product has promo code', () => {});
+        it('should return false when product has no promo code', () => {});
+    });
+});
+
+// ❌ ERRADO
+describe('Product Tests', () => {
+    it('test 1', () => {});
+    it('test 2', () => {});
+});
+```
+
+## AAA Pattern
+
+**Sempre use Arrange-Act-Assert:**
+
+```typescript
+it('should return product with promo code', async () => {
+    // Arrange
+    const mockPromoCode = new PromoCode(/* ... */);
+    const mockRepository = {
+        getProductByAsin: jest.fn().mockResolvedValue(
+            new Product('B08N5WRWNW', mockPromoCode)
+        ),
+    };
+    const useCase = new GetProductWithPromoCode(mockRepository);
+
+    // Act
+    const result = await useCase.execute('B08N5WRWNW');
+
+    // Assert
+    expect(result.asin).toBe('B08N5WRWNW');
+    expect(result.hasPromoCode()).toBe(true);
+    expect(mockRepository.getProductByAsin).toHaveBeenCalledWith('B08N5WRWNW');
+});
+```
+
+## Mock External Dependencies
+
+**Sempre mocke dependências externas:**
+
+```typescript
+// ✅ CORRETO: Mock Axios
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+mockedAxios.get.mockResolvedValue({ data: '<html>...</html>' });
+
+// ✅ CORRETO: Mock Puppeteer
+jest.mock('puppeteer', () => ({
+    launch: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue({
+            goto: jest.fn(),
+            content: jest.fn().mockResolvedValue('<html>...</html>'),
+            close: jest.fn(),
+        }),
+        close: jest.fn(),
+    }),
+}));
+```
+
+## Test Coverage
+
+**Cubra estes cenários:**
+
+1. ✅ **Happy Path**: Caso ideal
+2. ✅ **Edge Cases**: Limites, valores extremos
+3. ✅ **Error Cases**: Todos os possíveis erros
+4. ✅ **Validation**: Todas as validações de input
+
+```typescript
+describe('GetProductWithPromoCode', () => {
+    // Happy Path
+    it('should return product with promo code', async () => {});
+    it('should return product without promo code', async () => {});
+    
+    // Edge Cases
+    it('should trim whitespace from ASIN', async () => {});
+    
+    // Error Cases
+    it('should throw error if ASIN is empty', async () => {});
+    it('should throw error if ASIN is invalid format', async () => {});
+    it('should propagate repository errors', async () => {});
+});
+```
+
+## Assertions
+
+**Use matchers específicos:**
+
+```typescript
+// ✅ CORRETO
+expect(result).toBe(mockPromotion);
+expect(result.asin).toBe('B08N5WRWNW');
+expect(result.hasPromoCode()).toBe(true);
+expect(array).toHaveLength(3);
+expect(fn).toHaveBeenCalledTimes(1);
+expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
+expect(() => fn()).toThrow('Error message');
+
+// ❌ ERRADO
+expect(result == mockPromotion).toBe(true);
+expect(result.asin === 'B08N5WRWNW').toBeTruthy();
+expect(array.length).toBe(3);
+```
+
+## Async Testing
+
+```typescript
+// ✅ CORRETO: Use async/await
+it('should fetch product', async () => {
+    const result = await useCase.execute('B08N5WRWNW');
+    expect(result).toBeDefined();
+});
+
+// ✅ CORRETO: Test errors
+it('should throw error', async () => {
+    await expect(useCase.execute('')).rejects.toThrow('ASIN is required');
+});
+
+// ❌ ERRADO: Sem await
+it('should fetch product', () => {
+    const result = useCase.execute('B08N5WRWNW');
+    expect(result).toBeDefined(); // Promise, não o resultado
+});
+```
+
+## Test Data
+
+**Use factories para criar dados de teste:**
+
+```typescript
+// test-helpers/factories.ts
+export const createMockProduct = (overrides?: Partial<Product>): Product => {
+    return new Product(
+        overrides?.asin || 'B08N5WRWNW',
+        overrides?.promoCode || null
+    );
+};
+
+export const createMockPromotion = (overrides?: Partial<Promotion>): Promotion => {
+    return new Promotion({
+        id: overrides?.id || 'A2P3X1AN29HWHX',
+        description: overrides?.description || '20% off',
+        // ...
+    });
+};
+
+// No teste
+it('should handle product with promo code', () => {
+    const product = createMockProduct({
+        promoCode: createMockPromoCode(),
+    });
+    expect(product.hasPromoCode()).toBe(true);
+});
+```
+
+## Integration Tests
+
+**Para testes de integração (API):**
+
+```typescript
+import request from 'supertest';
+import { createApp } from '../../api/app';
+
+describe('GET /api/products/:asin', () => {
+    let app: Express;
+
+    beforeAll(async () => {
+        app = await createApp({
+            storagePath: './test-data',
+            cacheTtlMinutes: 30,
+            jobTimeoutMinutes: 10,
+            maxConcurrentJobs: 2,
+        });
+    });
+
+    it('should return product', async () => {
+        const response = await request(app)
+            .get('/api/products/B08N5WRWNW')
+            .expect(200);
+
+        expect(response.body).toHaveProperty('product');
+        expect(response.body.product.asin).toBe('B08N5WRWNW');
+    });
+});
+```
+
+## Coverage Goals
+
+**Mantenha cobertura acima de 80%:**
+
+```bash
+npm run test:coverage
+```
+
+**Priorize:**
+1. 🔴 **Critical**: Domain entities, use cases (>90%)
+2. 🟡 **Important**: Repositories, parsers (>80%)
+3. 🟢 **Nice to have**: Utilities, helpers (>70%)
+
+## Não Teste
+
+❌ **Não crie testes para:**
+- Frameworks externos (Express, Jest)
+- Bibliotecas de terceiros (Axios, Puppeteer)
+- Arquivos de configuração
+- Tipos TypeScript puros
+
+## Before/After Hooks
+
+```typescript
+// ✅ CORRETO
+describe('MyTest', () => {
+    let service: MyService;
+    
+    beforeEach(() => {
+        service = new MyService();
+    });
+    
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+    
+    it('test 1', () => {});
+    it('test 2', () => {});
+});
+
+// ❌ ERRADO: Setup no it()
+describe('MyTest', () => {
+    it('test 1', () => {
+        const service = new MyService(); // Repetitivo
+    });
+    
+    it('test 2', () => {
+        const service = new MyService(); // Repetitivo
+    });
+});
+```
+
+## Test Isolation
+
+**Cada teste deve ser independente:**
+
+```typescript
+// ✅ CORRETO
+describe('JobManager', () => {
+    let jobManager: JobManager;
+    
+    beforeEach(() => {
+        jobManager = new JobManager(null, 2);
+    });
+    
+    it('test 1', async () => {
+        await jobManager.createJob('type1', async () => 'result1');
+        // ...
+    });
+    
+    it('test 2', async () => {
+        // Novo jobManager, isolado do test 1
+        await jobManager.createJob('type2', async () => 'result2');
+        // ...
+    });
+});
+```

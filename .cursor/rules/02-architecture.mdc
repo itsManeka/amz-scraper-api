@@ -1,0 +1,178 @@
+---
+title: Clean Architecture Rules
+description: Regras de arquitetura para o Amazon Scraper API
+tags: [architecture, clean-code, solid]
+---
+
+# Clean Architecture Rules
+
+## Estrutura de Camadas
+
+### Domain Layer (`src/domain/`)
+
+**PERMITIDO:**
+- ✅ Entidades de negócio (Product, Promotion, Job, ScrapeRequest)
+- ✅ Interfaces de repositórios (IProductRepository, IPromotionRepository)
+- ✅ Value Objects imutáveis
+- ✅ Validações de regras de negócio
+
+**PROIBIDO:**
+- ❌ Dependências externas (axios, express, puppeteer)
+- ❌ Lógica de infraestrutura (HTTP, database, cache)
+- ❌ Implementações concretas de repositórios
+- ❌ Imports de outras camadas
+
+**Exemplo Correto:**
+```typescript
+// src/domain/entities/Product.ts
+export class Product {
+    readonly asin: string;
+    readonly promoCode: PromoCode | null;
+
+    constructor(asin: string, promoCode: PromoCode | null = null) {
+        this.validateAsin(asin);
+        this.asin = asin.trim();
+        this.promoCode = promoCode;
+    }
+
+    private validateAsin(asin: string): void {
+        if (!asin || !/^[A-Z0-9]{10}$/i.test(asin.trim())) {
+            throw new Error('Invalid ASIN format');
+        }
+    }
+}
+```
+
+### Application Layer (`src/application/`)
+
+**PERMITIDO:**
+- ✅ Use cases (GetProduct, StartPromotionScraping)
+- ✅ Orquestração de entidades de domínio
+- ✅ Interfaces de serviços externos
+- ✅ DTOs para transferência de dados
+
+**PROIBIDO:**
+- ❌ Detalhes de HTTP (req, res)
+- ❌ Detalhes de persistência (SQL, files)
+- ❌ Implementações de infraestrutura
+- ❌ Lógica de apresentação
+
+**Exemplo Correto:**
+```typescript
+// src/application/use-cases/GetProductWithPromoCode.ts
+export class GetProductWithPromoCode {
+    constructor(private readonly productRepository: IProductRepository) {}
+
+    async execute(asin: string): Promise<Product> {
+        this.validateInput(asin);
+        return await this.productRepository.getProductByAsin(asin);
+    }
+
+    private validateInput(asin: string): void {
+        if (!asin || typeof asin !== 'string') {
+            throw new Error('ASIN must be a non-empty string');
+        }
+    }
+}
+```
+
+### Infrastructure Layer (`src/infrastructure/`)
+
+**PERMITIDO:**
+- ✅ Implementações de repositórios
+- ✅ HTTP clients (Axios)
+- ✅ Browser automation (Puppeteer)
+- ✅ Storage, Cache, Jobs
+- ✅ Parsers HTML
+
+**PROIBIDO:**
+- ❌ Lógica de negócio
+- ❌ Regras de domínio
+- ❌ Validações de entidades
+
+**Exemplo Correto:**
+```typescript
+// src/infrastructure/repositories/ProductRepository.ts
+export class ProductRepository implements IProductRepository {
+    constructor(
+        private readonly httpClient: IHttpClient,
+        private readonly parser: AmazonHtmlParser
+    ) {}
+
+    async getProductByAsin(asin: string): Promise<Product> {
+        const html = await this.httpClient.get(`/dp/${asin}`);
+        const promoCode = this.parser.parsePromoCode(html);
+        return new Product(asin, promoCode);
+    }
+}
+```
+
+### Presentation Layer (`src/api/`)
+
+**PERMITIDO:**
+- ✅ Controllers
+- ✅ Routes
+- ✅ Middlewares (error, validation)
+- ✅ Request/Response mapping
+
+**PROIBIDO:**
+- ❌ Lógica de negócio
+- ❌ Acesso direto a repositórios
+- ❌ Implementações de infraestrutura
+
+**Exemplo Correto:**
+```typescript
+// src/api/controllers/ProductController.ts
+export class ProductController {
+    constructor(private readonly getProductUseCase: GetProductWithPromoCode) {}
+
+    async getProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { asin } = req.params;
+            const product = await this.getProductUseCase.execute(asin);
+            res.json({ product: product.toJSON() });
+        } catch (error) {
+            next(error);
+        }
+    }
+}
+```
+
+## Dependency Injection
+
+**Sempre injete dependências via construtor:**
+
+```typescript
+// ✅ CORRETO
+export class MyService {
+    constructor(private readonly dependency: IDependency) {}
+}
+
+// ❌ ERRADO
+export class MyService {
+    private dependency = new ConcreteDependency();
+}
+```
+
+## Fluxo de Dados
+
+```
+Request → Controller → Use Case → Repository → External Service
+Response ← Controller ← Use Case ← Repository ← External Service
+```
+
+**NUNCA pule camadas!**
+
+## Inversão de Dependência
+
+```typescript
+// ✅ CORRETO: Infrastructure depende de Domain
+export class ProductRepository implements IProductRepository {
+    // Interface definida no domain
+}
+
+// ❌ ERRADO: Domain depende de Infrastructure
+export interface IProductRepository {
+    getByAsin(asin: string): Promise<ConcreteProduct>; // ConcreteProduct da infra
+}
+```

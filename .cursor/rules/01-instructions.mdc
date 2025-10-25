@@ -1,0 +1,128 @@
+---
+alwaysApply: true
+description: Instruções gerais para o Amazon Scraper API
+tags: [instructions, clean-code, solid]
+---
+
+# Amazon Scraper API - Cursor Rules
+
+Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosamente estas regras ao fazer modificações.
+
+## Arquitetura
+
+- **Domain Layer** (`src/domain/`): Entidades puras, sem dependências externas
+- **Application Layer** (`src/application/`): Casos de uso, orquestração de lógica de negócio
+- **Infrastructure Layer** (`src/infrastructure/`): Implementações externas (HTTP, storage, cache, browser)
+- **Presentation Layer** (`src/api/`): REST API com Express.js
+
+## Regras Gerais
+
+1. **Sempre use TypeScript strict mode**
+2. **Sempre crie testes para novas funcionalidades**
+3. **Mantenha cobertura de testes acima de 80%**
+4. **Sempre use async/await, nunca callbacks**
+5. **Sempre valide inputs em boundaries (controllers, use cases)**
+6. **Sempre use interfaces para inversão de dependência**
+7. **Nunca misture responsabilidades entre camadas**
+
+## TypeScript
+
+- Use `readonly` para propriedades imutáveis
+- Use `private/protected` apropriadamente
+- Sempre tipifique parâmetros e retornos
+- Evite `any`, use `unknown` quando necessário
+- Use tipos em vez de enums quando possível
+
+## Testes
+
+- Use Jest para todos os testes
+- Nomeie arquivos de teste como `*.test.ts`
+- Mock dependências externas (Puppeteer, Axios)
+- Use `describe` e `it` para organizar testes
+- Cubra casos felizes e casos de erro
+
+## Scraping
+
+- Use Cheerio para páginas estáticas
+- Use Puppeteer para páginas dinâmicas
+- Sempre use user-agent rotation
+- Sempre trate timeouts
+- Sempre limpe recursos (feche browsers)
+
+## API
+
+- Use Express middlewares para validação
+- Sempre retorne JSON padronizado
+- Use códigos HTTP apropriados
+- Sempre use error handler global
+- Documente endpoints no docs/API.md
+
+## Commits
+
+- Use Conventional Commits
+- Prefixos: feat, fix, docs, test, refactor, chore
+- Commits em inglês
+
+Para regras específicas, consulte arquivos em `.cursor/rules/`.
+
+# Amazon Scraper API - Cursor Rules
+
+Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosamente estas regras ao fazer modificações.
+
+## Arquitetura
+
+- **Domain Layer** (`src/domain/`): Entidades puras, sem dependências externas
+- **Application Layer** (`src/application/`): Casos de uso, orquestração de lógica de negócio
+- **Infrastructure Layer** (`src/infrastructure/`): Implementações externas (HTTP, storage, cache, browser)
+- **Presentation Layer** (`src/api/`): REST API com Express.js
+
+## Regras Gerais
+
+1. **Sempre use TypeScript strict mode**
+2. **Sempre crie testes para novas funcionalidades**
+3. **Mantenha cobertura de testes acima de 80%**
+4. **Sempre use async/await, nunca callbacks**
+5. **Sempre valide inputs em boundaries (controllers, use cases)**
+6. **Sempre use interfaces para inversão de dependência**
+7. **Nunca misture responsabilidades entre camadas**
+
+## TypeScript
+
+- Use `readonly` para propriedades imutáveis
+- Use `private/protected` apropriadamente
+- Sempre tipifique parâmetros e retornos
+- Evite `any`, use `unknown` quando necessário
+- Use tipos em vez de enums quando possível
+
+## Testes
+
+- Use Jest para todos os testes
+- Nomeie arquivos de teste como `*.test.ts`
+- Mock dependências externas (Puppeteer, Axios)
+- Use `describe` e `it` para organizar testes
+- Cubra casos felizes e casos de erro
+
+## Scraping
+
+- Use Cheerio para páginas estáticas
+- Use Puppeteer para páginas dinâmicas
+- Sempre use user-agent rotation
+- Sempre trate timeouts
+- Sempre limpe recursos (feche browsers)
+
+## API
+
+- Use Express middlewares para validação
+- Sempre retorne JSON padronizado
+- Use códigos HTTP apropriados
+- Sempre use error handler global
+- Documente endpoints no docs/API.md
+
+## Commits
+
+- Use Conventional Commits
+- Prefixos: feat, fix, docs, test, refactor, chore
+- Commits em inglês
+
+Para regras específicas, consulte arquivos na pasta .cursor/rules/.
+

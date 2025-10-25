@@ -1,0 +1,357 @@
+---
+title: Web Scraping Best Practices
+description: Regras para scraping com Cheerio e Puppeteer
+tags: [scraping, puppeteer, cheerio, web]
+---
+
+# Web Scraping Best Practices
+
+## Quando Usar Cada Ferramenta
+
+### Cheerio (Páginas Estáticas)
+
+**Use Cheerio quando:**
+- ✅ Página carrega conteúdo no HTML inicial
+- ✅ Não precisa executar JavaScript
+- ✅ Performance é crítica
+- ✅ Exemplo: Product verification
+
+```typescript
+// ✅ CORRETO: Cheerio para páginas estáticas
+export class AmazonHtmlParser {
+    parsePromoCode(html: string): PromoCode | null {
+        const $ = cheerio.load(html);
+        const couponElement = $('#promoPriceBlockMessage_feature_div');
+        
+        if (couponElement.length === 0) {
+            return null;
+        }
+        
+        const link = couponElement.find('a[href*="/promotion/"]');
+        const url = link.attr('href');
+        
+        // ...
+    }
+}
+```
+
+### Puppeteer (Páginas Dinâmicas)
+
+**Use Puppeteer quando:**
+- ✅ Conteúdo carrega via JavaScript
+- ✅ Precisa clicar em botões, scroll, etc.
+- ✅ Precisa esperar elementos dinâmicos
+- ✅ Exemplo: Promotion scraping com "Show More"
+
+```typescript
+// ✅ CORRETO: Puppeteer para páginas dinâmicas
+export class BrowserPromotionRepository {
+    async getPromotionById(promotionId: string): Promise<Promotion> {
+        const browser = await puppeteer.launch(/* ... */);
+        const page = await browser.newPage();
+        
+        await page.goto(url);
+        await this.clickShowMoreButton(page);
+        
+        const html = await page.content();
+        await browser.close();
+        
+        return this.parser.parse(html);
+    }
+}
+```
+
+## Browser Configuration
+
+### Launch Options
+
+```typescript
+// ✅ CORRETO: Otimizado para Render.com
+export class BrowserConfig {
+    static getLaunchOptions(): {
+        headless: boolean | 'new';
+        args: string[];
+    } {
+        return {
+            headless: true, // ou 'new' se suportado
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu',
+            ],
+        };
+    }
+}
+```
+
+### User-Agent Rotation
+
+```typescript
+// ✅ CORRETO: Rotacione user agents
+export class UserAgentRotator {
+    private static readonly USER_AGENTS = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0',
+        // ...
+    ];
+
+    getRandom(): string {
+        const randomIndex = Math.floor(Math.random() * UserAgentRotator.USER_AGENTS.length);
+        return UserAgentRotator.USER_AGENTS[randomIndex];
+    }
+}
+
+// Uso
+const userAgent = this.userAgentRotator.getRandom();
+await page.setUserAgent(userAgent);
+```
+
+### Headers Rotation
+
+```typescript
+// ✅ CORRETO: Headers realistas
+export class HeadersRotator {
+    getHeaders(): Record<string, string> {
+        return {
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://www.amazon.com.br/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+        };
+    }
+}
+
+// Uso
+await page.setExtraHTTPHeaders(this.headersRotator.getHeaders());
+```
+
+## Resource Cleanup
+
+```typescript
+// ✅ CORRETO: Sempre feche o browser
+async getPromotionById(promotionId: string): Promise<Promotion> {
+    let browser: Browser | null = null;
+
+    try {
+        browser = await puppeteer.launch(/* ... */);
+        const page = await browser.newPage();
+        
+        // ... scraping logic ...
+        
+        await browser.close();
+        browser = null;
+        
+        return promotion;
+    } catch (error) {
+        // ✅ IMPORTANTE: Feche browser mesmo em caso de erro
+        if (browser) {
+            await browser.close();
+        }
+        throw error;
+    }
+}
+
+// ❌ ERRADO: Browser pode ficar aberto
+async getPromotionById(promotionId: string): Promise<Promotion> {
+    const browser = await puppeteer.launch(/* ... */);
+    const page = await browser.newPage();
+    
+    // ... scraping logic ...
+    
+    return promotion; // ❌ Browser não foi fechado!
+}
+```
+
+## Wait Strategies
+
+```typescript
+// ✅ CORRETO: Espere elementos específicos
+await page.waitForSelector('#promotionTitle', {
+    timeout: 10000,
+});
+
+// ✅ CORRETO: Espere navegação completar
+await page.goto(url, {
+    waitUntil: 'networkidle2',
+    timeout: 30000,
+});
+
+// ❌ EVITE: Timeouts fixos
+await page.waitForTimeout(5000); // Pode ser muito ou pouco
+
+// ✅ ALTERNATIVA: Use waitForFunction
+await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => {});
+```
+
+## Click and Scroll
+
+```typescript
+// ✅ CORRETO: Click "Show More" até não haver mais
+async clickShowMoreButton(page: Page): Promise<void> {
+    let clickCount = 0;
+    const maxClicks = 20;
+
+    while (clickCount < maxClicks) {
+        const showMoreButton = await page.$('button.show-more');
+        
+        if (!showMoreButton) {
+            // Tente por texto
+            const buttonFound = await page.evaluate(() => {
+                // @ts-ignore
+                const buttons = Array.from(document.querySelectorAll('button, a'));
+                for (const button of buttons) {
+                    // @ts-ignore
+                    if (button.textContent?.includes('Mostrar mais')) {
+                        // @ts-ignore
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            });
+            
+            if (!buttonFound) break;
+        } else {
+            await showMoreButton.click();
+        }
+        
+        clickCount++;
+        await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => {});
+    }
+}
+```
+
+## Error Handling
+
+```typescript
+// ✅ CORRETO: Try-catch em operações específicas
+async waitForPromotionContent(page: Page): Promise<void> {
+    try {
+        await page.waitForSelector('#promotionTitle', {
+            timeout: 10000,
+        });
+    } catch (error) {
+        // ✅ Log warning mas continue
+        console.warn('[Scraper] Promotion title not found, continuing anyway');
+    }
+}
+
+// ✅ CORRETO: Erros customizados
+if (!title) {
+    throw new PromotionNotFoundError(promotionId);
+}
+
+if (error instanceof TimeoutError) {
+    throw new ScraperError('Page load timeout');
+}
+```
+
+## Parsing Strategies
+
+```typescript
+// ✅ CORRETO: Múltiplas estratégias
+parseInitialAsins(html: string): string[] {
+    const $ = cheerio.load(html);
+    const asins = new Set<string>();
+
+    // Strategy 1: Links com /dp/
+    $('a[href*="/dp/"]').each((_, element) => {
+        const href = $(element).attr('href');
+        if (href) {
+            const match = href.match(/\/dp\/([A-Z0-9]{10})/);
+            if (match) asins.add(match[1]);
+        }
+    });
+
+    // Strategy 2: Data attributes
+    $('[data-asin]').each((_, element) => {
+        const asin = $(element).attr('data-asin');
+        if (asin && /^[A-Z0-9]{10}$/i.test(asin)) {
+            asins.add(asin.toUpperCase());
+        }
+    });
+
+    // Strategy 3: JavaScript/JSON
+    const scriptContent = $('script').text();
+    const matches = scriptContent.matchAll(/"asin":"([A-Z0-9]{10})"/gi);
+    for (const match of matches) {
+        asins.add(match[1].toUpperCase());
+    }
+
+    return Array.from(asins);
+}
+```
+
+## Timeouts
+
+```typescript
+// ✅ CORRETO: Configure timeouts adequados
+export class BrowserPromotionRepository {
+    constructor(private readonly timeout: number = 30000) {}
+
+    async getPromotionById(promotionId: string): Promise<Promotion> {
+        await page.goto(url, {
+            waitUntil: 'networkidle2',
+            timeout: this.timeout, // Configurável
+        });
+    }
+}
+
+// Configuração via env
+const timeout = parseInt(process.env.JOB_TIMEOUT_MINUTES || '10', 10) * 60 * 1000;
+```
+
+## Respecting robots.txt
+
+```typescript
+// ✅ IMPORTANTE: Respeite robots.txt
+// - Amazon permite scraping limitado
+// - Não sobrecarregue servidores
+// - Use delays entre requests
+// - Rotacione IPs se necessário (não implementado aqui)
+
+// ✅ CORRETO: Limite concurrent jobs
+const maxConcurrentJobs = parseInt(process.env.MAX_CONCURRENT_JOBS || '2', 10);
+```
+
+## Logging
+
+```typescript
+// ✅ CORRETO: Log importante mas não sensível
+console.log(`[BrowserPromotionRepository] Navigating to: ${url}`);
+console.log(`[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`);
+console.warn('[BrowserPromotionRepository] Subcategory filter not found');
+
+// ❌ ERRADO: Log HTML completo (muito verbose)
+console.log('[Scraper] HTML:', html);
+
+// ❌ ERRADO: Log dados sensíveis
+console.log('[Scraper] User token:', token);
+```
+
+## Testing Scraping Logic
+
+```typescript
+// ✅ CORRETO: Mock Puppeteer em testes
+jest.mock('puppeteer', () => ({
+    launch: jest.fn().mockResolvedValue({
+        newPage: jest.fn().mockResolvedValue({
+            goto: jest.fn(),
+            setUserAgent: jest.fn(),
+            setViewport: jest.fn(),
+            content: jest.fn().mockResolvedValue('<html>...</html>'),
+            close: jest.fn(),
+        }),
+        close: jest.fn(),
+    }),
+}));
+
+// ✅ CORRETO: Use HTML fixtures
+const mockHtml = fs.readFileSync('examples/html/promotion/page.html', 'utf-8');
+const asins = parser.parseInitialAsins(mockHtml);
+```

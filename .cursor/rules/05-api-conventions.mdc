@@ -1,0 +1,359 @@
+---
+title: API Conventions
+description: Padrões e convenções para REST API
+tags: [api, rest, express, http]
+---
+
+# API Conventions
+
+## REST Principles
+
+### Resource Naming
+
+```typescript
+// ✅ CORRETO: Substantivos no plural
+GET    /api/products/:asin
+GET    /api/promotions/:promotionId
+GET    /api/promotions/jobs/:jobId
+
+// ❌ ERRADO: Verbos na URL
+GET    /api/getProduct/:asin
+POST   /api/createJob
+```
+
+### HTTP Methods
+
+```typescript
+// ✅ CORRETO
+GET    /api/products/:asin           // Buscar
+POST   /api/promotions/scrape        // Criar job
+GET    /api/promotions/jobs/:jobId   // Status do job
+DELETE /api/promotions/jobs/:jobId   // Cancelar job
+
+// ❌ ERRADO
+POST   /api/products/get/:asin
+GET    /api/promotions/scrape        // GET não deve ter side effects
+```
+
+## Response Format
+
+### Success Response
+
+```typescript
+// ✅ CORRETO: Objeto com dados
+{
+  "product": {
+    "asin": "B08N5WRWNW",
+    "promoCode": { ... }
+  },
+  "promotionJob": {
+    "jobId": "uuid",
+    "status": "pending"
+  }
+}
+
+// ❌ ERRADO: Dados soltos
+{
+  "asin": "B08N5WRWNW",
+  "promoCode": { ... }
+}
+```
+
+### Error Response
+
+**Sempre use este formato:**
+
+```typescript
+{
+  "error": {
+    "message": "Product not found",
+    "type": "ProductNotFoundError",
+    "statusCode": 404,
+    "details": {
+      "asin": "INVALID123"
+    }
+  }
+}
+```
+
+### HTTP Status Codes
+
+```typescript
+// Success
+200 OK          // GET bem sucedido
+201 Created     // POST criou recurso
+202 Accepted    // POST job assíncrono criado
+204 No Content  // DELETE bem sucedido
+
+// Client Errors
+400 Bad Request        // Validação falhou
+404 Not Found          // Recurso não existe
+422 Unprocessable      // Validação semântica falhou
+
+// Server Errors
+500 Internal Server Error  // Erro genérico
+503 Service Unavailable    // Serviço temporariamente indisponível
+```
+
+## Controller Pattern
+
+```typescript
+// ✅ CORRETO: Controller delega para use case
+export class ProductController {
+    constructor(private readonly getProductUseCase: GetProductWithPromoCode) {}
+
+    async getProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { asin } = req.params;
+            const product = await this.getProductUseCase.execute(asin);
+            
+            res.json({
+                product: product.toJSON()
+            });
+        } catch (error) {
+            next(error); // Passa para error handler
+        }
+    }
+}
+
+// ❌ ERRADO: Controller com lógica de negócio
+export class ProductController {
+    async getProduct(req: Request, res: Response): Promise<void> {
+        const { asin } = req.params;
+        
+        // ❌ Validação no controller
+        if (!/^[A-Z0-9]{10}$/.test(asin)) {
+            res.status(400).json({ error: 'Invalid ASIN' });
+            return;
+        }
+        
+        // ❌ Lógica de negócio no controller
+        const html = await axios.get(`/dp/${asin}`);
+        const product = parseProduct(html);
+        
+        res.json(product);
+    }
+}
+```
+
+## Validation Middleware
+
+```typescript
+// ✅ CORRETO: Validação em middleware
+export class ValidateRequest {
+    static asin(req: Request, res: Response, next: NextFunction): void {
+        const { asin } = req.params;
+        
+        if (!asin || !/^[A-Z0-9]{10}$/i.test(asin.trim())) {
+            res.status(400).json({
+                error: {
+                    message: 'ASIN must be exactly 10 alphanumeric characters',
+                    type: 'ValidationError',
+                    statusCode: 400,
+                },
+            });
+            return;
+        }
+        
+        next();
+    }
+}
+
+// Uso nas rotas
+router.get('/:asin', ValidateRequest.asin, (req, res, next) =>
+    controller.getProduct(req, res, next)
+);
+```
+
+## Error Handler
+
+```typescript
+// ✅ CORRETO: Error handler global
+export function errorHandler(
+    error: Error,
+    _req: Request,
+    res: Response,
+    _next: NextFunction
+): void {
+    console.error('[ErrorHandler]', error);
+
+    if (error instanceof ProductNotFoundError) {
+        res.status(404).json({
+            error: {
+                message: error.message,
+                type: 'ProductNotFoundError',
+                statusCode: 404,
+                details: { asin: error.asin },
+            },
+        });
+        return;
+    }
+
+    // Generic error
+    res.status(500).json({
+        error: {
+            message: error.message || 'Internal server error',
+            type: error.name || 'Error',
+            statusCode: 500,
+        },
+    });
+}
+
+// Registrar no final do app
+app.use(errorHandler);
+```
+
+## Async Routes
+
+```typescript
+// ✅ CORRETO: Use next() para propagar erros
+router.get('/:asin', async (req, res, next) => {
+    try {
+        const result = await controller.getProduct(req, res);
+        // ou simplesmente
+        await controller.getProduct(req, res, next);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ❌ ERRADO: Try-catch em cada rota
+router.get('/:asin', async (req, res) => {
+    try {
+        // ...
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+```
+
+## Query Parameters
+
+```typescript
+// ✅ CORRETO: Query params para filtros
+GET /api/promotions/A2P3X1AN29HWHX?category=Livros&subcategory=Mangá
+
+// Controller
+async getCachedPromotion(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { promotionId } = req.params;
+    const { category, subcategory } = req.query;
+    
+    const promotion = await this.getCachedPromotionUseCase.execute(
+        promotionId,
+        category as string | undefined,
+        subcategory as string | undefined
+    );
+    // ...
+}
+```
+
+## Request Body
+
+```typescript
+// ✅ CORRETO: Body para POST/PUT
+POST /api/promotions/scrape
+Content-Type: application/json
+
+{
+  "promotionId": "A2P3X1AN29HWHX",
+  "category": "Livros",
+  "subcategory": "Mangá HQs, Mangás e Graphic Novels"
+}
+
+// Controller
+async startScraping(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const { promotionId, category, subcategory } = req.body;
+    
+    const scrapeRequest = new ScrapeRequest(
+        promotionId,
+        category || null,
+        subcategory || null
+    );
+    
+    const job = await this.startPromotionScrapingUseCase.execute(scrapeRequest);
+    
+    res.status(202).json({
+        jobId: job.id,
+        status: job.status,
+        message: 'Promotion scraping job created successfully',
+    });
+}
+```
+
+## Route Organization
+
+```typescript
+// src/api/routes/product.routes.ts
+export function createProductRoutes(controller: ProductController): Router {
+    const router = Router();
+    
+    router.get('/:asin', ValidateRequest.asin, (req, res, next) =>
+        controller.getProduct(req, res, next)
+    );
+    
+    return router;
+}
+
+// src/api/app.ts
+app.use('/api/products', createProductRoutes(productController));
+app.use('/api/promotions', createPromotionRoutes(promotionController));
+app.use('/api/health', createHealthRoutes(healthController));
+```
+
+## API Versioning
+
+```typescript
+// ✅ Futuro: Versioning via URL
+app.use('/api/v1/products', createProductRoutesV1(controller));
+app.use('/api/v2/products', createProductRoutesV2(controller));
+
+// ❌ Evite: Headers para versioning (mais complexo)
+```
+
+## CORS
+
+```typescript
+// ✅ CORRETO: Configure CORS se necessário
+import cors from 'cors';
+
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
+```
+
+## Rate Limiting
+
+```typescript
+// ✅ Futuro: Add rate limiting
+import rateLimit from 'express-rate-limit';
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+});
+
+app.use('/api/', limiter);
+```
+
+## Documentation
+
+**Sempre documente endpoints em `docs/API.md`:**
+
+```markdown
+### GET /api/products/:asin
+
+Retrieves product information and extracts promotional code if available.
+
+**Parameters:**
+- `asin` (path, required): Amazon Standard Identification Number
+
+**Response:**
+- 200 OK: Product found
+- 400 Bad Request: Invalid ASIN
+- 404 Not Found: Product not found
+
+**Example:**
+```bash
+curl http://localhost:3000/api/products/B08N5WRWNW
+```
