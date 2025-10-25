@@ -16,6 +16,10 @@ services:
         value: 10
       - key: MAX_CONCURRENT_JOBS
         value: 2
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: false
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/.cache/puppeteer
     disk:
       name: scraper-data
       mountPath: /opt/render/project/data

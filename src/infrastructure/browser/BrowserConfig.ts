@@ -17,9 +17,10 @@ export class BrowserConfig {
     static getLaunchOptions(): {
         headless: boolean | 'new';
         args: string[];
+        executablePath?: string;
     } {
-        return {
-            headless: 'new', // Use new headless mode for better performance
+        const options = {
+            headless: 'new' as const, // Use new headless mode for better performance
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -30,6 +31,18 @@ export class BrowserConfig {
                 '--disable-gpu',
             ],
         };
+
+        // On Render.com or other production environments, use the Chrome installed by Puppeteer
+        // The PUPPETEER_EXECUTABLE_PATH env var is set automatically after running:
+        // npx puppeteer browsers install chrome
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            return {
+                ...options,
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+            };
+        }
+
+        return options;
     }
 }
 
