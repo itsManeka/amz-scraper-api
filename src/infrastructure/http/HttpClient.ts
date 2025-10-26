@@ -144,7 +144,10 @@ export class HttpClient implements IHttpClient {
                         );
 
                         // Check if we should retry
-                        if (this.shouldRetry(error, attempt, maxRetries) && response.status >= 500) {
+                        if (
+                            this.shouldRetry(error, attempt, maxRetries) &&
+                            response.status >= 500
+                        ) {
                             lastError = error;
                             const delay = this.calculateRetryDelay(attempt, retryDelay);
                             console.log(
@@ -175,7 +178,9 @@ export class HttpClient implements IHttpClient {
                     lastError = error as Error;
                     const delay = this.calculateRetryDelay(attempt, retryDelay);
 
-                    const statusCode = axios.isAxiosError(error) ? error.response?.status : 'unknown';
+                    const statusCode = axios.isAxiosError(error)
+                        ? error.response?.status
+                        : 'unknown';
                     console.log(
                         `[HttpClient] Retry ${attempt + 1}/${maxRetries} after ${Math.round(delay)}ms for ${url} (error: ${statusCode})`
                     );

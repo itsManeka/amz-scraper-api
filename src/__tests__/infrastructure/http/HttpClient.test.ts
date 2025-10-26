@@ -175,7 +175,11 @@ describe('HttpClient', () => {
     <h1>502 Bad Gateway</h1>
 </body>
 </html>`;
-            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 502, statusText: 'Bad Gateway' });
+            mockedAxios.get.mockResolvedValue({
+                data: htmlError,
+                status: 502,
+                statusText: 'Bad Gateway',
+            });
 
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
             await expect(httpClient.get('https://example.com')).rejects.toThrow(
@@ -193,7 +197,11 @@ describe('HttpClient', () => {
     <p>503 Service Unavailable</p>
 </body>
 </html>`;
-            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 503, statusText: 'Service Unavailable' });
+            mockedAxios.get.mockResolvedValue({
+                data: htmlError,
+                status: 503,
+                statusText: 'Service Unavailable',
+            });
 
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
             await expect(httpClient.get('https://example.com')).rejects.toThrow(
@@ -203,7 +211,11 @@ describe('HttpClient', () => {
 
         it('should throw HttpError for 4xx status codes', async () => {
             const mockHtml = '<html><body>Not Found</body></html>';
-            mockedAxios.get.mockResolvedValue({ data: mockHtml, status: 404, statusText: 'Not Found' });
+            mockedAxios.get.mockResolvedValue({
+                data: mockHtml,
+                status: 404,
+                statusText: 'Not Found',
+            });
 
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
             await expect(httpClient.get('https://example.com')).rejects.toThrow(
@@ -218,12 +230,14 @@ describe('HttpClient', () => {
     <h1>502 Error</h1>
 </body>
 </html>`;
-            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 502, statusText: 'Bad Gateway' });
+            mockedAxios.get.mockResolvedValue({
+                data: htmlError,
+                status: 502,
+                statusText: 'Bad Gateway',
+            });
 
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
-            await expect(httpClient.get('https://example.com')).rejects.toThrow(
-                'Server error 502'
-            );
+            await expect(httpClient.get('https://example.com')).rejects.toThrow('Server error 502');
         });
     });
 
@@ -242,7 +256,11 @@ describe('HttpClient', () => {
             const mockHtml = '<html><body>Success</body></html>';
 
             mockedAxios.get
-                .mockResolvedValueOnce({ data: '<!DOCTYPE html><html><head><title>502</title></head></html>', status: 502, statusText: 'Bad Gateway' })
+                .mockResolvedValueOnce({
+                    data: '<!DOCTYPE html><html><head><title>502</title></head></html>',
+                    status: 502,
+                    statusText: 'Bad Gateway',
+                })
                 .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
 
             const promise = httpClient.get('https://example.com');
@@ -259,7 +277,11 @@ describe('HttpClient', () => {
             const mockHtml = '<html><body>Success</body></html>';
 
             mockedAxios.get
-                .mockResolvedValueOnce({ data: '<!DOCTYPE html><html><head><title>503</title></head></html>', status: 503, statusText: 'Service Unavailable' })
+                .mockResolvedValueOnce({
+                    data: '<!DOCTYPE html><html><head><title>503</title></head></html>',
+                    status: 503,
+                    statusText: 'Service Unavailable',
+                })
                 .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
 
             const promise = httpClient.get('https://example.com');
@@ -290,7 +312,11 @@ describe('HttpClient', () => {
         it('should not retry on 404 error', async () => {
             const mockHtml = '<!DOCTYPE html><html><body>Not Found</body></html>';
 
-            mockedAxios.get.mockResolvedValue({ data: mockHtml, status: 404, statusText: 'Not Found' });
+            mockedAxios.get.mockResolvedValue({
+                data: mockHtml,
+                status: 404,
+                statusText: 'Not Found',
+            });
 
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1); // No retries
@@ -301,7 +327,7 @@ describe('HttpClient', () => {
             const rateLimitError = {
                 isAxiosError: true,
                 response: { status: 429, statusText: 'Too Many Requests' },
-                message: 'Rate limit exceeded'
+                message: 'Rate limit exceeded',
             };
 
             mockedAxios.isAxiosError.mockReturnValue(true);

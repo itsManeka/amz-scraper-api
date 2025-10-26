@@ -536,7 +536,9 @@ describe('ValidateRequest', () => {
             expect(mockResponse.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     error: expect.objectContaining({
-                        message: expect.stringContaining('ASIN must be exactly 10 alphanumeric characters'),
+                        message: expect.stringContaining(
+                            'ASIN must be exactly 10 alphanumeric characters'
+                        ),
                         type: 'ValidationError',
                         statusCode: 400,
                     }),

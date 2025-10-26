@@ -221,10 +221,19 @@ export class BrowserPromotionRepository implements IPromotionRepository {
         try {
             let clickCount = 0;
             const maxClicks = 20; // Prevent infinite loops
+            const waitBetweenClicks = 2000; // 2 seconds between clicks
+            const maxWaitForNewProducts = 5000; // Max 5 seconds waiting for new products
 
             console.log('[BrowserPromotionRepository] Looking for "Show More" button');
 
             while (clickCount < maxClicks) {
+                // Count products before clicking
+                const productCountBefore = await page.evaluate(() => {
+                    // Count all product items (divs with data-asin attribute)
+                    // @ts-expect-error - DOM access in browser context
+                    return document.querySelectorAll('[data-asin]:not([data-asin=""])').length;
+                });
+
                 // Try to find "Show More" button by text content using page.evaluate
                 // Puppeteer doesn't support :has-text() selector (that's Playwright syntax)
                 const buttonFound = await page.evaluate(() => {
@@ -263,8 +272,36 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                     `[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`
                 );
 
-                // Wait for new products to load
-                await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => {});
+                // Wait for new products to load by checking if product count increased
+                try {
+                    await page.waitForFunction(
+                        (prevCount) => {
+                            // @ts-expect-error - DOM access in browser context
+                            const currentCount = document.querySelectorAll(
+                                '[data-asin]:not([data-asin=""])'
+                            ).length;
+                            return currentCount > prevCount;
+                        },
+                        { timeout: maxWaitForNewProducts },
+                        productCountBefore
+                    );
+
+                    const productCountAfter = await page.evaluate(() => {
+                        // @ts-expect-error - DOM access in browser context
+                        return document.querySelectorAll('[data-asin]:not([data-asin=""])').length;
+                    });
+
+                    console.log(
+                        `[BrowserPromotionRepository] Products loaded: ${productCountBefore} -> ${productCountAfter}`
+                    );
+                } catch (waitError) {
+                    console.warn(
+                        `[BrowserPromotionRepository] No new products loaded after click ${clickCount}, continuing...`
+                    );
+                }
+
+                // Additional delay to ensure stability
+                await new Promise((resolve) => setTimeout(resolve, waitBetweenClicks));
             }
 
             if (clickCount >= maxClicks) {

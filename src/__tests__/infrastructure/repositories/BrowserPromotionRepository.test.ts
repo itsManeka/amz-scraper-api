@@ -143,8 +143,13 @@ describe('BrowserPromotionRepository', () => {
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
-                .mockResolvedValueOnce(true) // First click
-                .mockResolvedValueOnce(true) // Second click
+                .mockResolvedValueOnce(10) // Product count before first click
+                .mockResolvedValueOnce(true) // First click button found
+                .mockResolvedValueOnce(15) // Product count after first click
+                .mockResolvedValueOnce(15) // Product count before second click
+                .mockResolvedValueOnce(true) // Second click button found
+                .mockResolvedValueOnce(20) // Product count after second click
+                .mockResolvedValueOnce(20) // Product count before third check
                 .mockResolvedValueOnce(false); // No more buttons
 
             await repository.getPromotionById('ABC123');
@@ -155,7 +160,13 @@ describe('BrowserPromotionRepository', () => {
             expect(console.log).toHaveBeenCalledWith(
                 expect.stringContaining('Clicked "Show More" button (2)')
             );
-        }, 10000);
+            expect(console.log).toHaveBeenCalledWith(
+                expect.stringContaining('Products loaded: 10 -> 15')
+            );
+            expect(console.log).toHaveBeenCalledWith(
+                expect.stringContaining('Products loaded: 15 -> 20')
+            );
+        }, 15000);
 
         it('should throw PromotionNotFoundError when title is empty', async () => {
             const mockHtml = `
@@ -319,6 +330,7 @@ describe('BrowserPromotionRepository', () => {
         }, 10000);
 
         it('should limit "Show More" clicks to maximum', async () => {
+            jest.useFakeTimers();
             const mockHtml = `
                 <html>
                     <body>
@@ -329,14 +341,36 @@ describe('BrowserPromotionRepository', () => {
             `;
 
             mockPage.content.mockResolvedValue(mockHtml);
-            mockPage.evaluate.mockResolvedValue(true); // Always return true (button found)
+
+            // Mock evaluate to return increasing product counts for each call
+            let evaluateCallCount = 0;
+            mockPage.evaluate.mockImplementation(() => {
+                evaluateCallCount++;
+                // Every odd call is for counting products (before click)
+                // Every even call is for clicking button
+                if (evaluateCallCount % 2 === 1) {
+                    return Promise.resolve(evaluateCallCount); // Product count
+                } else {
+                    return Promise.resolve(true); // Button found
+                }
+            });
+
             mockPage.waitForFunction.mockResolvedValue({} as any);
 
-            await repository.getPromotionById('ABC123');
+            const promotionPromise = repository.getPromotionById('ABC123');
+
+            // Fast-forward through all the delays
+            for (let i = 0; i < 20; i++) {
+                await jest.advanceTimersByTimeAsync(7000); // 5s wait + 2s delay
+            }
+
+            await promotionPromise;
 
             expect(console.warn).toHaveBeenCalledWith(
                 expect.stringContaining('Reached maximum "Show More" clicks')
             );
-        }, 10000);
+
+            jest.useRealTimers();
+        }, 30000);
     });
 });
