@@ -192,10 +192,10 @@ export class ValidateRequest {
 
         // Validate each ASIN
         for (const asin of asins) {
-            if (typeof asin !== 'string' || asin.trim().length !== 10) {
+            if (typeof asin !== 'string') {
                 res.status(400).json({
                     error: {
-                        message: 'Each ASIN must be a string of exactly 10 alphanumeric characters',
+                        message: 'Each ASIN must be a string',
                         type: 'ValidationError',
                         statusCode: 400,
                     },
@@ -203,10 +203,23 @@ export class ValidateRequest {
                 return;
             }
 
-            if (!/^[A-Z0-9]{10}$/i.test(asin.trim())) {
+            const asinTrimmed = asin.trim();
+
+            if (asinTrimmed.length !== 10) {
                 res.status(400).json({
                     error: {
-                        message: `Invalid ASIN format: ${asin}`,
+                        message: `ASIN must be exactly 10 alphanumeric characters (received "${asin}" with ${asinTrimmed.length} characters)`,
+                        type: 'ValidationError',
+                        statusCode: 400,
+                    },
+                });
+                return;
+            }
+
+            if (!/^[A-Z0-9]{10}$/i.test(asinTrimmed)) {
+                res.status(400).json({
+                    error: {
+                        message: `Invalid ASIN format: ${asin} (must contain only alphanumeric characters)`,
                         type: 'ValidationError',
                         statusCode: 400,
                     },

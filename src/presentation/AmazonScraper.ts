@@ -27,6 +27,18 @@ export interface AmazonScraperConfig {
      * Additional headers to include in requests (optional)
      */
     headers?: Record<string, string>;
+
+    /**
+     * Number of retry attempts for failed requests (default: 3)
+     * Retries are performed for 5xx errors and network errors
+     */
+    retries?: number;
+
+    /**
+     * Initial delay between retries in milliseconds (default: 1000)
+     * Uses exponential backoff with jitter
+     */
+    retryDelay?: number;
 }
 
 /**
@@ -62,6 +74,8 @@ export class AmazonScraper {
             timeout: config.timeout,
             proxy: config.proxy,
             headers: config.headers,
+            retries: config.retries,
+            retryDelay: config.retryDelay,
         };
 
         // Initialize dependencies following Clean Architecture

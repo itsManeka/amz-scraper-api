@@ -16,6 +16,18 @@ export interface HttpClientConfig {
      * Additional headers to include in the request
      */
     headers?: Record<string, string>;
+
+    /**
+     * Number of retry attempts for failed requests (default: 3)
+     * Retries are performed for 5xx errors and network errors
+     */
+    retries?: number;
+
+    /**
+     * Initial delay between retries in milliseconds (default: 1000)
+     * Uses exponential backoff with jitter
+     */
+    retryDelay?: number;
 }
 
 /**

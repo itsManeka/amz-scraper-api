@@ -55,7 +55,8 @@ describe('HttpClient', () => {
 
     describe('get', () => {
         beforeEach(() => {
-            httpClient = new HttpClient();
+            // Disable retries for basic tests
+            httpClient = new HttpClient({ retries: 0 });
         });
 
         it('should successfully fetch HTML content', async () => {
@@ -162,6 +163,182 @@ describe('HttpClient', () => {
                     proxy: false,
                 })
             );
+        });
+
+        it('should throw HttpError when receiving HTML error page (502)', async () => {
+            const htmlError = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>502 Bad Gateway</title>
+</head>
+<body>
+    <h1>502 Bad Gateway</h1>
+</body>
+</html>`;
+            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 502, statusText: 'Bad Gateway' });
+
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(
+                'Amazon returned error page (502): 502 Bad Gateway'
+            );
+        });
+
+        it('should throw HttpError when receiving HTML error page (503)', async () => {
+            const htmlError = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Unavailable</title>
+</head>
+<body>
+    <p>503 Service Unavailable</p>
+</body>
+</html>`;
+            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 503, statusText: 'Service Unavailable' });
+
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(
+                'Amazon returned error page (503)'
+            );
+        });
+
+        it('should throw HttpError for 4xx status codes', async () => {
+            const mockHtml = '<html><body>Not Found</body></html>';
+            mockedAxios.get.mockResolvedValue({ data: mockHtml, status: 404, statusText: 'Not Found' });
+
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(
+                'HTTP request failed with status 404: Not Found'
+            );
+        });
+
+        it('should extract error from HTML without title tag', async () => {
+            const htmlError = `<!DOCTYPE html>
+<html>
+<body>
+    <h1>502 Error</h1>
+</body>
+</html>`;
+            mockedAxios.get.mockResolvedValue({ data: htmlError, status: 502, statusText: 'Bad Gateway' });
+
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(
+                'Server error 502'
+            );
+        });
+    });
+
+    describe('retry mechanism', () => {
+        beforeEach(() => {
+            httpClient = new HttpClient({ retries: 2, retryDelay: 100 });
+            mockedAxios.defaults = { headers: { common: {} } } as typeof mockedAxios.defaults;
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('should retry on 502 error and succeed', async () => {
+            const mockHtml = '<html><body>Success</body></html>';
+
+            mockedAxios.get
+                .mockResolvedValueOnce({ data: '<!DOCTYPE html><html><head><title>502</title></head></html>', status: 502, statusText: 'Bad Gateway' })
+                .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
+
+            const promise = httpClient.get('https://example.com');
+
+            // Fast-forward time for the retry delay
+            await jest.advanceTimersByTimeAsync(200);
+
+            const result = await promise;
+            expect(result).toBe(mockHtml);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it('should retry on 503 error and succeed', async () => {
+            const mockHtml = '<html><body>Success</body></html>';
+
+            mockedAxios.get
+                .mockResolvedValueOnce({ data: '<!DOCTYPE html><html><head><title>503</title></head></html>', status: 503, statusText: 'Service Unavailable' })
+                .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
+
+            const promise = httpClient.get('https://example.com');
+            await jest.advanceTimersByTimeAsync(200);
+
+            const result = await promise;
+            expect(result).toBe(mockHtml);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it('should retry on network error and succeed', async () => {
+            const mockHtml = '<html><body>Success</body></html>';
+            const networkError = { isAxiosError: true, message: 'Network Error' };
+
+            mockedAxios.isAxiosError.mockReturnValue(true);
+            mockedAxios.get
+                .mockRejectedValueOnce(networkError)
+                .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
+
+            const promise = httpClient.get('https://example.com');
+            await jest.advanceTimersByTimeAsync(200);
+
+            const result = await promise;
+            expect(result).toBe(mockHtml);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not retry on 404 error', async () => {
+            const mockHtml = '<!DOCTYPE html><html><body>Not Found</body></html>';
+
+            mockedAxios.get.mockResolvedValue({ data: mockHtml, status: 404, statusText: 'Not Found' });
+
+            await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1); // No retries
+        });
+
+        it('should retry on 429 rate limit', async () => {
+            const mockHtml = '<html><body>Success</body></html>';
+            const rateLimitError = {
+                isAxiosError: true,
+                response: { status: 429, statusText: 'Too Many Requests' },
+                message: 'Rate limit exceeded'
+            };
+
+            mockedAxios.isAxiosError.mockReturnValue(true);
+            mockedAxios.get
+                .mockRejectedValueOnce(rateLimitError)
+                .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
+
+            const promise = httpClient.get('https://example.com');
+            await jest.advanceTimersByTimeAsync(200);
+
+            const result = await promise;
+            expect(result).toBe(mockHtml);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        it('should use exponential backoff', async () => {
+            const htmlError = '<!DOCTYPE html><html><head><title>502</title></head></html>';
+            const mockHtml = '<html><body>Success</body></html>';
+
+            httpClient = new HttpClient({ retries: 3, retryDelay: 100 });
+
+            mockedAxios.get
+                .mockResolvedValueOnce({ data: htmlError, status: 502, statusText: 'Bad Gateway' })
+                .mockResolvedValueOnce({ data: htmlError, status: 502, statusText: 'Bad Gateway' })
+                .mockResolvedValueOnce({ data: htmlError, status: 502, statusText: 'Bad Gateway' })
+                .mockResolvedValueOnce({ data: mockHtml, status: 200, statusText: 'OK' });
+
+            const promise = httpClient.get('https://example.com');
+
+            // Verify exponential backoff: 100ms, 200ms, 400ms (approximately, with jitter)
+            await jest.advanceTimersByTimeAsync(150); // First retry (100ms + jitter)
+            await jest.advanceTimersByTimeAsync(250); // Second retry (200ms + jitter)
+            await jest.advanceTimersByTimeAsync(500); // Third retry (400ms + jitter)
+
+            const result = await promise;
+            expect(result).toBe(mockHtml);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(4); // Initial + 3 retries
         });
     });
 

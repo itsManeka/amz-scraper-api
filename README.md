@@ -15,6 +15,7 @@
 - ✅ **Category/Subcategory Filtering**: Apply Amazon's native filters to narrow results
 - ✅ **Auto "Show More" Clicking**: Automatically loads all products by clicking pagination buttons
 - ✅ **User-Agent Rotation**: Avoid detection with rotating user agents and headers
+- ✅ **Automatic Retries**: Exponential backoff for 5xx errors and network failures
 - ✅ **Async Job Management**: Long-running tasks handled as background jobs
 - ✅ **Caching**: Reduce scraping frequency with intelligent caching
 - ✅ **Clean Architecture**: Maintainable, testable, SOLID principles
