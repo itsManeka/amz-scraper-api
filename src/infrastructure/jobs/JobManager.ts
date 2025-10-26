@@ -70,7 +70,11 @@ export class JobManager implements IJobManager {
     /**
      * Creates a new job and starts execution
      */
-    async createJob<T>(type: string, executor: () => Promise<T>, metadata?: JobMetadata): Promise<Job<T>> {
+    async createJob<T>(
+        type: string,
+        executor: () => Promise<T>,
+        metadata?: JobMetadata
+    ): Promise<Job<T>> {
         const jobId = uuidv4();
         const job = new Job<T>({
             id: jobId,
@@ -116,7 +120,7 @@ export class JobManager implements IJobManager {
             }
 
             // Check category match
-            const categoryMatch = 
+            const categoryMatch =
                 (category === undefined && job.metadata.category === undefined) ||
                 job.metadata.category === category;
 
@@ -135,8 +139,10 @@ export class JobManager implements IJobManager {
 
         // Check if any non-failed job exists
         const nonFailedJob = matchingJobs.find(
-            (job) => job.isPending() || job.isRunning() || 
-            (job.status === 'completed' && !job.hasFailed())
+            (job) =>
+                job.isPending() ||
+                job.isRunning() ||
+                (job.status === 'completed' && !job.hasFailed())
         );
 
         // Return non-failed job if exists, otherwise null (allow retry of failed jobs)

@@ -139,11 +139,10 @@ describe('JobManager - findJobByPromotion', () => {
                 asins: [],
             });
 
-            await jobManager.createJob<Promotion>(
-                'promotion-scraping',
-                async () => promotion,
-                { promotionId: 'ABC123', category: 'Livros' }
-            );
+            await jobManager.createJob<Promotion>('promotion-scraping', async () => promotion, {
+                promotionId: 'ABC123',
+                category: 'Livros',
+            });
 
             const found = await jobManager.findJobByPromotion('ABC123', 'Livros');
 
@@ -164,11 +163,10 @@ describe('JobManager - findJobByPromotion', () => {
                 asins: [],
             });
 
-            await jobManager.createJob<Promotion>(
-                'promotion-scraping',
-                async () => promotion,
-                { promotionId: 'ABC123', category: 'Livros' }
-            );
+            await jobManager.createJob<Promotion>('promotion-scraping', async () => promotion, {
+                promotionId: 'ABC123',
+                category: 'Livros',
+            });
 
             const found = await jobManager.findJobByPromotion('ABC123', 'Eletrônicos');
 
@@ -187,15 +185,11 @@ describe('JobManager - findJobByPromotion', () => {
                 asins: [],
             });
 
-            await jobManager.createJob<Promotion>(
-                'promotion-scraping',
-                async () => promotion,
-                {
-                    promotionId: 'ABC123',
-                    category: 'Livros',
-                    subcategory: 'Mangá HQs, Mangás e Graphic Novels',
-                }
-            );
+            await jobManager.createJob<Promotion>('promotion-scraping', async () => promotion, {
+                promotionId: 'ABC123',
+                category: 'Livros',
+                subcategory: 'Mangá HQs, Mangás e Graphic Novels',
+            });
 
             const found = await jobManager.findJobByPromotion(
                 'ABC123',
@@ -221,17 +215,17 @@ describe('JobManager - findJobByPromotion', () => {
                 asins: [],
             });
 
-            await jobManager.createJob<Promotion>(
-                'promotion-scraping',
-                async () => promotion,
-                {
-                    promotionId: 'ABC123',
-                    category: 'Livros',
-                    subcategory: 'Mangá HQs, Mangás e Graphic Novels',
-                }
-            );
+            await jobManager.createJob<Promotion>('promotion-scraping', async () => promotion, {
+                promotionId: 'ABC123',
+                category: 'Livros',
+                subcategory: 'Mangá HQs, Mangás e Graphic Novels',
+            });
 
-            const found = await jobManager.findJobByPromotion('ABC123', 'Livros', 'Literatura e Ficção');
+            const found = await jobManager.findJobByPromotion(
+                'ABC123',
+                'Livros',
+                'Literatura e Ficção'
+            );
 
             expect(found).toBeNull();
         });
@@ -293,4 +287,3 @@ describe('JobManager - findJobByPromotion', () => {
         });
     });
 });
-

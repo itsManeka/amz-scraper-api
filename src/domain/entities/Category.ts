@@ -77,4 +77,3 @@ export const BookSubcategory = {
  * Type representing valid book subcategory values
  */
 export type BookSubcategoryValue = (typeof BookSubcategory)[keyof typeof BookSubcategory];
-

@@ -55,7 +55,7 @@ export class ProductController {
 
                     console.log(
                         `[ProductController] Started promotion scraping job ${job.id} for promotion ${promotionId}` +
-                        (category ? ` with category: ${category}` : '')
+                            (category ? ` with category: ${category}` : '')
                     );
                 }
             }
@@ -128,9 +128,8 @@ export class ProductController {
                                 category || null,
                                 subcategory || null
                             );
-                            const job = await this.startPromotionScrapingUseCase.execute(
-                                scrapeRequest
-                            );
+                            const job =
+                                await this.startPromotionScrapingUseCase.execute(scrapeRequest);
 
                             promotionJob = {
                                 jobId: job.id,
@@ -139,7 +138,7 @@ export class ProductController {
 
                             console.log(
                                 `[ProductController] Batch: Started promotion scraping job ${job.id} for promotion ${promotionId}` +
-                                (category ? ` with category: ${category}` : '')
+                                    (category ? ` with category: ${category}` : '')
                             );
                         }
                     }

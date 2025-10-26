@@ -40,7 +40,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', undefined, undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                undefined,
+                undefined
+            );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
                 'promotion-scraping',
                 expect.any(Function),
@@ -65,7 +69,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', 'Electronics', undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                'Electronics',
+                undefined
+            );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
                 'promotion-scraping',
                 expect.any(Function),
@@ -91,7 +99,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', 'Electronics', 'Computers');
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                'Electronics',
+                'Computers'
+            );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
                 'promotion-scraping',
                 expect.any(Function),
@@ -202,7 +214,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', undefined, undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                undefined,
+                undefined
+            );
             expect(mockJobManager.createJob).not.toHaveBeenCalled();
             expect(result).toBe(existingJob);
         });
@@ -222,7 +238,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', 'Livros', undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                'Livros',
+                undefined
+            );
             expect(mockJobManager.createJob).not.toHaveBeenCalled();
             expect(result).toBe(existingJob);
         });
@@ -255,7 +275,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', undefined, undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                undefined,
+                undefined
+            );
             expect(mockJobManager.createJob).not.toHaveBeenCalled();
             expect(result).toBe(existingJob);
         });
@@ -276,7 +300,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', undefined, undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                undefined,
+                undefined
+            );
             expect(mockJobManager.createJob).toHaveBeenCalled();
             expect(result).toBe(newJob);
         });
@@ -299,7 +327,11 @@ describe('StartPromotionScraping Use Case', () => {
 
             const result = await useCase.execute(request);
 
-            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith('ABC123', 'Livros', undefined);
+            expect(mockJobManager.findJobByPromotion).toHaveBeenCalledWith(
+                'ABC123',
+                'Livros',
+                undefined
+            );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
                 'promotion-scraping',
                 expect.any(Function),
@@ -312,7 +344,11 @@ describe('StartPromotionScraping Use Case', () => {
         });
 
         it('should differentiate jobs by subcategory filters', async () => {
-            const request = new ScrapeRequest('ABC123', 'Livros', 'Mangá HQs, Mangás e Graphic Novels');
+            const request = new ScrapeRequest(
+                'ABC123',
+                'Livros',
+                'Mangá HQs, Mangás e Graphic Novels'
+            );
 
             // No existing job for this subcategory
             mockJobManager.findJobByPromotion.mockResolvedValue(null);
