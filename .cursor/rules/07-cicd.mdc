@@ -98,7 +98,7 @@ Secrets necessários no repositório:
 - Usado para: Upload de cobertura de testes
 - Configuração: Settings → Secrets → Actions → New secret
 
-### RENDER_DEPLOY_HOOK
+### DEPLOY_HOOK
 - Obtido em: Render.com → Service → Settings → Deploy Hook
 - Formato: `https://api.render.com/deploy/srv-xxxxx?key=yyyyy`
 - Usado para: Trigger de deploy automático
@@ -172,7 +172,7 @@ Acompanhe deploys em: Render.com Dashboard
 **Solução**: Use `git rebase -i` para corrigir mensagens de commit.
 
 ### "Deploy hook failed"
-**Causa**: RENDER_DEPLOY_HOOK incorreto ou expirado
+**Causa**: DEPLOY_HOOK incorreto ou expirado
 **Solução**: Gere novo hook no Render.com e atualize secret.
 
 ## Versionamento Manual (Emergência)

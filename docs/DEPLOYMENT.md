@@ -40,7 +40,7 @@ Configure these secrets in your GitHub repository settings:
 5. Value: Paste your Codecov token
 6. Click `Add secret`
 
-### 2. RENDER_DEPLOY_HOOK
+### 2. DEPLOY_HOOK
 
 **Purpose**: Trigger automatic deployment to Render.com
 
@@ -55,7 +55,7 @@ Configure these secrets in your GitHub repository settings:
 1. Go to your GitHub repository
 2. Navigate to: `Settings` → `Secrets and variables` → `Actions`
 3. Click `New repository secret`
-4. Name: `RENDER_DEPLOY_HOOK`
+4. Name: `DEPLOY_HOOK`
 5. Value: Paste your Render deploy hook URL
 6. Click `Add secret`
 
@@ -226,7 +226,7 @@ Monitor deployments:
 **Symptom**: Deploy job fails with HTTP error
 
 **Solution**:
-1. Verify `RENDER_DEPLOY_HOOK` secret is correct
+1. Verify `DEPLOY_HOOK` secret is correct
 2. Generate new deploy hook in Render.com
 3. Update GitHub secret with new URL
 4. Re-run workflow
@@ -251,7 +251,7 @@ If automated deployment fails, deploy manually:
 ### Option 1: Manual Deploy Hook
 
 ```bash
-curl -X POST "YOUR_RENDER_DEPLOY_HOOK_URL"
+curl -X POST "YOUR_DEPLOY_HOOK_URL"
 ```
 
 ### Option 2: Render Dashboard
