@@ -82,7 +82,21 @@ jobs:
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        run: |
+          npx semantic-release > /tmp/semantic-release.log 2>&1 || true
+          cat /tmp/semantic-release.log
+          
+          # Check if a new release was published
+          if grep -q "Published release" /tmp/semantic-release.log || grep -q "Created tag" /tmp/semantic-release.log; then
+            echo "new_release_published=true" >> $GITHUB_OUTPUT
+            # Extract version from git tags
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+            echo "new_release_version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "✅ New release published: ${VERSION}"
+          else
+            echo "new_release_published=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No new release published"
+          fi
       
       - name: Debug Release Outputs
         run: |
