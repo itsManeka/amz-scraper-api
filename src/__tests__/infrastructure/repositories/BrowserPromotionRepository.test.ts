@@ -259,7 +259,8 @@ describe('BrowserPromotionRepository', () => {
             await repository.getPromotionById('ABC123', 'Livros', 'Mangá');
 
             expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Error applying subcategory filter')
+                expect.stringContaining('Error applying subcategory filter'),
+                expect.anything()
             );
         }, 10000);
 
@@ -281,7 +282,8 @@ describe('BrowserPromotionRepository', () => {
 
             expect(promotion).toBeDefined();
             expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Error clicking "Show More" button')
+                expect.stringContaining('Error clicking "Show More" button'),
+                expect.anything()
             );
         }, 10000);
 
@@ -311,7 +313,8 @@ describe('BrowserPromotionRepository', () => {
 
             expect(promotion).toBeDefined();
             expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Error during scrolling')
+                expect.stringContaining('Error during scrolling'),
+                expect.anything()
             );
         }, 10000);
 
