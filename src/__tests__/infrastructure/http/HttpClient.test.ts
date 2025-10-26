@@ -124,5 +124,236 @@ describe('HttpClient', () => {
             await expect(httpClient.get('https://example.com')).rejects.toThrow(HttpError);
             await expect(httpClient.get('https://example.com')).rejects.toThrow('Network Error');
         });
+
+        it('should use custom headers from method config', async () => {
+            const mockHtml = '<html><body>Test</body></html>';
+            mockedAxios.get.mockResolvedValue({ data: mockHtml });
+            mockedAxios.defaults = { headers: { common: {} } } as any;
+
+            await httpClient.get('https://example.com', {
+                headers: { 'X-Custom': 'value' },
+            });
+
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                'https://example.com',
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        'X-Custom': 'value',
+                    }),
+                })
+            );
+        });
+
+        it('should configure proxy when provided', async () => {
+            const mockHtml = '<html><body>Test</body></html>';
+            mockedAxios.get.mockResolvedValue({ data: mockHtml });
+            mockedAxios.defaults = { headers: { common: {} } } as any;
+
+            await httpClient.get('https://example.com', {
+                proxy: 'http://proxy.example.com:8080',
+            });
+
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                'https://example.com',
+                expect.objectContaining({
+                    httpsAgent: expect.any(Object),
+                    proxy: false,
+                })
+            );
+        });
+    });
+
+    describe('post', () => {
+        beforeEach(() => {
+            httpClient = new HttpClient();
+            mockedAxios.defaults = { headers: { common: {} } } as any;
+        });
+
+        it('should successfully post data', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            const result = await httpClient.post('https://example.com/api', {
+                key: 'value',
+            });
+
+            expect(result).toEqual(mockResponse);
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                { key: 'value' },
+                expect.any(Object)
+            );
+        });
+
+        it('should post string data as-is', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post('https://example.com/api', 'raw string data');
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                'raw string data',
+                expect.any(Object)
+            );
+        });
+
+        it('should convert object to form-encoded string when Content-Type is form-urlencoded', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post(
+                'https://example.com/api',
+                { username: 'test', password: 'pass123' },
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                }
+            );
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                'username=test&password=pass123',
+                expect.any(Object)
+            );
+        });
+
+        it('should handle form-urlencoded with lowercase content-type header', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post(
+                'https://example.com/api',
+                { key: 'value with spaces' },
+                {
+                    headers: {
+                        'content-type': 'application/x-www-form-urlencoded',
+                    },
+                }
+            );
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                'key=value%20with%20spaces',
+                expect.any(Object)
+            );
+        });
+
+        it('should use custom timeout from method config', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post(
+                'https://example.com/api',
+                { key: 'value' },
+                { timeout: 5000 }
+            );
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                { key: 'value' },
+                expect.objectContaining({
+                    timeout: 5000,
+                })
+            );
+        });
+
+        it('should configure proxy when provided', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post(
+                'https://example.com/api',
+                { key: 'value' },
+                { proxy: 'http://proxy.example.com:8080' }
+            );
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                { key: 'value' },
+                expect.objectContaining({
+                    httpsAgent: expect.any(Object),
+                    proxy: false,
+                })
+            );
+        });
+
+        it('should throw HttpError on POST failure', async () => {
+            const axiosError = {
+                isAxiosError: true,
+                response: {
+                    status: 400,
+                    statusText: 'Bad Request',
+                },
+                message: 'Request failed',
+            };
+            mockedAxios.isAxiosError.mockReturnValue(true);
+            mockedAxios.post.mockRejectedValue(axiosError);
+
+            await expect(
+                httpClient.post('https://example.com/api', { key: 'value' })
+            ).rejects.toThrow(HttpError);
+
+            try {
+                await httpClient.post('https://example.com/api', { key: 'value' });
+            } catch (error) {
+                expect(error).toBeInstanceOf(HttpError);
+                expect((error as HttpError).statusCode).toBe(400);
+                expect((error as HttpError).message).toContain('Bad Request');
+            }
+        });
+
+        it('should throw HttpError on non-axios error', async () => {
+            const error = new Error('Unexpected error');
+            mockedAxios.isAxiosError.mockReturnValue(false);
+            mockedAxios.post.mockRejectedValue(error);
+
+            await expect(
+                httpClient.post('https://example.com/api', { key: 'value' })
+            ).rejects.toThrow(HttpError);
+            await expect(
+                httpClient.post('https://example.com/api', { key: 'value' })
+            ).rejects.toThrow('Unexpected error during HTTP POST request');
+        });
+
+        it('should handle axios error without response', async () => {
+            const axiosError = {
+                isAxiosError: true,
+                message: 'Network Error',
+            };
+            mockedAxios.isAxiosError.mockReturnValue(true);
+            mockedAxios.post.mockRejectedValue(axiosError);
+
+            await expect(
+                httpClient.post('https://example.com/api', { key: 'value' })
+            ).rejects.toThrow(HttpError);
+            await expect(
+                httpClient.post('https://example.com/api', { key: 'value' })
+            ).rejects.toThrow('Network Error');
+        });
+
+        it('should use custom headers from method config', async () => {
+            const mockResponse = { success: true };
+            mockedAxios.post.mockResolvedValue({ data: mockResponse });
+
+            await httpClient.post(
+                'https://example.com/api',
+                { key: 'value' },
+                {
+                    headers: { 'X-Custom': 'value' },
+                }
+            );
+
+            expect(mockedAxios.post).toHaveBeenCalledWith(
+                'https://example.com/api',
+                { key: 'value' },
+                expect.objectContaining({
+                    headers: expect.objectContaining({
+                        'X-Custom': 'value',
+                    }),
+                })
+            );
+        });
     });
 });

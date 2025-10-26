@@ -1,0 +1,206 @@
+---
+description: Regras de CI/CD para deploy e versionamento automático
+tags: [ci-cd, github-actions, semantic-release, deployment]
+---
+
+# CI/CD - Continuous Integration & Deployment
+
+## Overview
+
+Este projeto usa **GitHub Actions** para CI/CD automático, com versionamento semântico e deploy no Render.com.
+
+## Conventional Commits
+
+**OBRIGATÓRIO**: Use Conventional Commits para todos os commits.
+
+### Formato
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+### Types e Versionamento
+
+| Type | Release | Descrição | Exemplo |
+|------|---------|-----------|---------|
+| `feat` | **MINOR** | Nova funcionalidade | `feat: add webhook support` |
+| `fix` | **PATCH** | Correção de bug | `fix: prevent memory leak in job cleanup` |
+| `perf` | **PATCH** | Melhoria de performance | `perf: optimize HTML parsing` |
+| `docs` | **PATCH** | Apenas documentação | `docs: update API examples` |
+| `style` | **PATCH** | Formatação, espaços | `style: fix indentation` |
+| `refactor` | **PATCH** | Refatoração de código | `refactor: simplify browser config` |
+| `test` | **PATCH** | Adicionar/corrigir testes | `test: add coverage for parsers` |
+| `build` | **PATCH** | Build system, deps | `build: update puppeteer to v23` |
+| `ci` | **PATCH** | CI/CD changes | `ci: add caching to workflow` |
+| `chore` | **NO RELEASE** | Tarefas gerais | `chore: update gitignore` |
+
+### Breaking Changes (MAJOR)
+
+Para mudanças que quebram compatibilidade, adicione `BREAKING CHANGE:` no footer:
+
+```
+feat: redesign promotion API
+
+BREAKING CHANGE: promotionId parameter is now required in all endpoints
+```
+
+Ou use `!` após o type/scope:
+
+```
+feat!: remove deprecated /api/v1 endpoints
+```
+
+## Workflow CI/CD
+
+### Pull Requests
+
+Quando você abre um PR:
+1. ✅ Roda todos os testes
+2. ✅ Verifica lint
+3. ✅ Calcula cobertura (mínimo 80%)
+4. ✅ Envia cobertura para Codecov
+5. ❌ **NÃO** faz release ou deploy
+
+### Push para Main
+
+Quando você faz merge para `main`:
+1. ✅ Roda todos os testes
+2. ✅ Verifica lint
+3. ✅ Calcula cobertura (mínimo 80%)
+4. ✅ Envia cobertura para Codecov
+5. ✅ **Analisa commits** desde último release
+6. ✅ **Determina nova versão** (major/minor/patch)
+7. ✅ **Atualiza** `package.json` e `CHANGELOG.md`
+8. ✅ **Cria tag** no Git
+9. ✅ **Cria release** no GitHub
+10. ✅ **Dispara deploy** no Render.com
+
+## Coverage Requirements
+
+**CRÍTICO**: Cobertura de testes deve ser >= 80% em:
+- Branches
+- Functions
+- Lines
+- Statements
+
+Se a cobertura cair abaixo de 80%, o build **FALHA** e não permite merge/deploy.
+
+## GitHub Secrets
+
+Secrets necessários no repositório:
+
+### CODECOV_TOKEN
+- Obtido em: https://codecov.io
+- Usado para: Upload de cobertura de testes
+- Configuração: Settings → Secrets → Actions → New secret
+
+### RENDER_DEPLOY_HOOK
+- Obtido em: Render.com → Service → Settings → Deploy Hook
+- Formato: `https://api.render.com/deploy/srv-xxxxx?key=yyyyy`
+- Usado para: Trigger de deploy automático
+
+### GITHUB_TOKEN
+- Gerado automaticamente pelo GitHub Actions
+- Usado para: Criar releases e tags
+- **NÃO** precisa configurar manualmente
+
+## Exemplos de Commits
+
+### ✅ Bom
+
+```bash
+feat(api): add pagination to products endpoint
+
+Add limit and offset parameters to /api/products endpoint
+to support pagination for large result sets.
+
+Closes #42
+```
+
+```bash
+fix(scraper): prevent timeout on slow pages
+
+Increase default timeout from 30s to 60s and add
+retry logic for network errors.
+
+Fixes #38
+```
+
+```bash
+test(use-cases): increase coverage for job management
+
+Add tests for concurrent job execution and timeout scenarios.
+Coverage increased from 78% to 85%.
+```
+
+### ❌ Ruim
+
+```bash
+update code
+```
+
+```bash
+fixed bug
+```
+
+```bash
+WIP: trying some stuff
+```
+
+## Monitoramento
+
+### Build Status
+Acompanhe builds em: https://github.com/itsmaneka/amz-scraper/actions
+
+### Coverage Reports
+Veja cobertura em: https://codecov.io/gh/itsManeka/amz-scraper-api
+
+### Deployments
+Acompanhe deploys em: Render.com Dashboard
+
+## Troubleshooting
+
+### "Coverage dropped below 80%"
+**Solução**: Adicione testes para cobrir o código novo antes de fazer merge.
+
+### "semantic-release failed"
+**Causa**: Commits sem seguir Conventional Commits
+**Solução**: Use `git rebase -i` para corrigir mensagens de commit.
+
+### "Deploy hook failed"
+**Causa**: RENDER_DEPLOY_HOOK incorreto ou expirado
+**Solução**: Gere novo hook no Render.com e atualize secret.
+
+## Versionamento Manual (Emergência)
+
+Se precisar versionar manualmente:
+
+```bash
+# Atualizar version em package.json
+npm version patch  # ou minor, ou major
+
+# Push com tag
+git push --follow-tags
+```
+
+**NOTA**: Isso NÃO dispara o deploy automático.
+
+## Regras de Merge
+
+1. **Sempre** use Conventional Commits
+2. **Sempre** garanta que testes passam localmente antes do PR
+3. **Sempre** mantenha cobertura >= 80%
+4. **Sempre** documente breaking changes
+5. **Nunca** force push em `main`
+6. **Nunca** faça merge sem review (exceto hotfixes críticos)
+
+## Links Úteis
+
+- [Conventional Commits Spec](https://www.conventionalcommits.org/)
+- [Semantic Versioning](https://semver.org/)
+- [GitHub Actions Docs](https://docs.github.com/en/actions)
+- [Semantic Release Docs](https://semantic-release.gitbook.io/)

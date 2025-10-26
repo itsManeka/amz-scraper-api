@@ -3,6 +3,7 @@ import {
     HttpError,
     ParsingError,
     ProductNotFoundError,
+    PromotionNotFoundError,
 } from '../../../infrastructure/errors/ScraperError';
 
 describe('ScraperError', () => {
@@ -60,6 +61,19 @@ describe('ScraperError', () => {
             expect(error.message).toBe('Product with ASIN 6589737258 not found');
             expect(error.name).toBe('ProductNotFoundError');
             expect(error.asin).toBe('6589737258');
+        });
+    });
+
+    describe('PromotionNotFoundError', () => {
+        it('should create a PromotionNotFoundError instance', () => {
+            const error = new PromotionNotFoundError('ABC123');
+
+            expect(error).toBeInstanceOf(Error);
+            expect(error).toBeInstanceOf(ScraperError);
+            expect(error).toBeInstanceOf(PromotionNotFoundError);
+            expect(error.message).toBe('Promotion with ID ABC123 not found');
+            expect(error.name).toBe('PromotionNotFoundError');
+            expect(error.promotionId).toBe('ABC123');
         });
     });
 });
