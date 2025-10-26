@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.0.2](https://github.com/itsManeka/amz-scraper-api/compare/v1.0.1...v1.0.2) (2025-10-26)
+
+
+### Bug Fixes
+
+* capture semantic-release outputs to trigger deploy correctly ([a45a40c](https://github.com/itsManeka/amz-scraper-api/commit/a45a40c6fccf31c32ff943ab9b73be77108ff83b))
+
 ## [1.0.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.0.0...v1.0.1) (2025-10-26)
 
 
