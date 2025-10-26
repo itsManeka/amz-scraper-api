@@ -54,17 +54,7 @@
                 "npmPublish": false
             }
         ],
-        [
-            "@semantic-release/github",
-            {
-                "assets": [
-                    {
-                        "path": "dist/**",
-                        "label": "Distribution"
-                    }
-                ]
-            }
-        ],
+        "@semantic-release/github",
         [
             "@semantic-release/git",
             {

@@ -83,6 +83,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
+      
+      - name: Debug Release Outputs
+        run: |
+          echo "New release published: ${{ steps.semantic.outputs.new_release_published }}"
+          echo "New release version: ${{ steps.semantic.outputs.new_release_version }}"
 
   deploy:
     name: Deploy to Render
