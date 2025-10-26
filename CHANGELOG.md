@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.0.3...v1.1.0) (2025-10-26)
+
+
+### Features
+
+* implement filtering options and job management ([4d4e46c](https://github.com/itsManeka/amz-scraper-api/commit/4d4e46cfd3b2c5d12447ae53cdc7d0094108fe6c))
+
+
+### Bug Fixes
+
+* lint errors ([ff66173](https://github.com/itsManeka/amz-scraper-api/commit/ff66173846e0854fcb62f1f239ac7746a2af1f8e))
+
 ## [1.0.3](https://github.com/itsManeka/amz-scraper-api/compare/v1.0.2...v1.0.3) (2025-10-26)
 
 
