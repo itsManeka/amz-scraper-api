@@ -200,7 +200,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             if (filterClicked) {
                 console.log('[BrowserPromotionRepository] Subcategory filter clicked, waiting for page update');
-                await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => {});
+                await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => { });
             } else {
                 console.warn(`[BrowserPromotionRepository] Subcategory filter not found: ${subcategory}`);
             }
@@ -221,52 +221,44 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             console.log('[BrowserPromotionRepository] Looking for "Show More" button');
 
             while (clickCount < maxClicks) {
-                // Look for various "Show More" button selectors
-                const showMoreButton = await page.$(
-                    'button[aria-label*="more"], ' +
-                        'button:has-text("Mostrar mais"), ' +
-                        'button:has-text("Show more"), ' +
-                        '[data-action="show-more"], ' +
-                        '.show-more-button, ' +
-                        '#show-more-btn'
-                );
+                // Try to find "Show More" button by text content using page.evaluate
+                // Puppeteer doesn't support :has-text() selector (that's Playwright syntax)
+                const buttonFound = await page.evaluate(() => {
+                    // @ts-ignore - DOM access in browser context
+                    const buttons = Array.from(document.querySelectorAll('button, a'));
+                    for (const button of buttons) {
+                        // @ts-ignore - DOM element in browser context
+                        const text = button.textContent?.toLowerCase() || '';
+                        // @ts-ignore - Check aria-label too
+                        const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
 
-                if (!showMoreButton) {
-                    // Also try to find by text content
-                    const buttonFound = await page.evaluate(() => {
-                        // @ts-ignore - DOM access in browser context
-                        const buttons = Array.from(document.querySelectorAll('button, a'));
-                        for (const button of buttons) {
+                        if (
+                            text.includes('mostrar mais') ||
+                            text.includes('show more') ||
+                            text.includes('ver mais') ||
+                            ariaLabel.includes('more') ||
+                            ariaLabel.includes('mais')
+                        ) {
                             // @ts-ignore - DOM element in browser context
-                            const text = button.textContent?.toLowerCase() || '';
-                            if (
-                                text.includes('mostrar mais') ||
-                                text.includes('show more') ||
-                                text.includes('ver mais')
-                            ) {
-                                // @ts-ignore - DOM element in browser context
-                                (button as HTMLElement).click();
-                                return true;
-                            }
+                            (button as HTMLElement).click();
+                            return true;
                         }
-                        return false;
-                    });
-
-                    if (!buttonFound) {
-                        console.log(
-                            `[BrowserPromotionRepository] No more "Show More" button found after ${clickCount} clicks`
-                        );
-                        break;
                     }
-                } else {
-                    await showMoreButton.click();
+                    return false;
+                });
+
+                if (!buttonFound) {
+                    console.log(
+                        `[BrowserPromotionRepository] No more "Show More" button found after ${clickCount} clicks`
+                    );
+                    break;
                 }
 
                 clickCount++;
                 console.log(`[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`);
 
                 // Wait for new products to load
-                await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => {});
+                await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => { });
             }
 
             if (clickCount >= maxClicks) {
