@@ -64,6 +64,13 @@ Retrieves product information and extracts promotional code if available. If a p
 
 **Parameters:**
 - `asin` (path, required): Amazon Standard Identification Number (10 alphanumeric characters)
+- `category` (query, optional): Category filter for promotion scraping (e.g., "Livros", "Eletrônicos")
+- `subcategory` (query, optional): Subcategory filter for promotion scraping (requires category)
+
+**Example:**
+```
+GET /api/products/B08N5WRWNW?category=Livros
+```
 
 **Response:**
 ```json
@@ -98,6 +105,114 @@ Retrieves product information and extracts promotional code if available. If a p
 - `400 Bad Request`: Invalid ASIN format
 - `404 Not Found`: Product not found
 - `500 Internal Server Error`: Scraping or parsing error
+
+---
+
+#### `POST /api/products/batch`
+
+Retrieves multiple products (up to 10) and extracts promotional codes. If promo codes with promotion URLs are found, automatically triggers background jobs to scrape the full promotion pages. Duplicate promotion jobs are prevented - if a promotion is already being scraped or has been successfully scraped, the existing job is returned.
+
+**Request Body:**
+```json
+{
+  "asins": ["B08N5WRWNW", "B08N5WRWNX", "B08N5WRWNY"],
+  "category": "Livros",
+  "subcategory": "Mangá HQs, Mangás e Graphic Novels"
+}
+```
+
+**Parameters:**
+- `asins` (required): Array of product ASINs (1-10 items)
+- `category` (optional): Category filter for promotion scraping
+- `subcategory` (optional): Subcategory filter for promotion scraping (requires category)
+
+**Response:**
+```json
+{
+  "products": [
+    {
+      "product": {
+        "asin": "B08N5WRWNW",
+        "promoCode": {
+          "name": "BOOKSPROMO",
+          "url": "https://www.amazon.com.br/promotion/psp/A2P3X1AN29HWHX",
+          "promotionId": "A2P3X1AN29HWHX"
+        }
+      },
+      "promotionJob": {
+        "jobId": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "pending"
+      },
+      "error": null
+    },
+    {
+      "product": {
+        "asin": "B08N5WRWNX",
+        "promoCode": {
+          "name": "BOOKSPROMO",
+          "url": "https://www.amazon.com.br/promotion/psp/A2P3X1AN29HWHX",
+          "promotionId": "A2P3X1AN29HWHX"
+        }
+      },
+      "promotionJob": {
+        "jobId": "550e8400-e29b-41d4-a716-446655440000",
+        "status": "running"
+      },
+      "error": null
+    },
+    {
+      "product": {
+        "asin": "B08N5WRWNY",
+        "promoCode": null
+      },
+      "promotionJob": null,
+      "error": null
+    }
+  ],
+  "total": 3,
+  "successful": 3,
+  "failed": 0
+}
+```
+
+**Response with Errors:**
+```json
+{
+  "products": [
+    {
+      "product": {
+        "asin": "B08N5WRWNW",
+        "promoCode": null
+      },
+      "promotionJob": null,
+      "error": null
+    },
+    {
+      "product": {
+        "asin": "INVALIDASIN"
+      },
+      "promotionJob": null,
+      "error": {
+        "message": "Product not found",
+        "type": "ProductNotFoundError"
+      }
+    }
+  ],
+  "total": 2,
+  "successful": 1,
+  "failed": 1
+}
+```
+
+**Notes:**
+- Products are fetched concurrently for better performance
+- If multiple products share the same promo code, only one promotion scraping job is created
+- Individual product failures don't affect other products in the batch
+- Useful for automated hourly checks of multiple products
+
+**Error Responses:**
+- `400 Bad Request`: Invalid request body, array empty or >10 items, invalid ASIN format
+- `500 Internal Server Error`: Server error
 
 ---
 
@@ -279,6 +394,57 @@ Currently, there is no rate limiting enforced. However, please be respectful:
 - Job timeout: 10 minutes
 - Avoid excessive requests to prevent overloading Amazon's servers
 
+## Category Constants
+
+The API accepts any category/subcategory string, but common Amazon Brazil categories are provided as constants for convenience:
+
+**Common Categories:**
+- `Livros` - Books
+- `Eletrônicos` - Electronics
+- `Computadores e Informática` - Computers and IT
+- `Celulares e Comunicação` - Cell Phones and Communication
+- `Casa e Cozinha` - Home and Kitchen
+- `Esportes e Aventura` - Sports and Outdoors
+- `Brinquedos e Jogos` - Toys and Games
+- `Bebês` - Baby Products
+- `Moda` - Fashion
+- `Beleza e Cuidado Pessoal` - Beauty and Personal Care
+
+**Common Book Subcategories:**
+- `Mangá HQs, Mangás e Graphic Novels`
+- `Literatura e Ficção`
+- `Autoajuda`
+- `Infantil`
+- `Romance`
+- `Suspense e Thriller`
+- `Negócios e Economia`
+- `História`
+
+## Duplicate Job Prevention
+
+The API automatically prevents duplicate promotion scraping jobs:
+
+- **Same Promotion ID + Category + Subcategory**: If a job is already pending, running, or successfully completed for a specific combination, the existing job is returned instead of creating a new one.
+- **Failed Jobs Allow Retry**: If the only existing jobs for a promotion have failed, a new job can be created to retry the scraping.
+- **Different Filters = Different Jobs**: Jobs with different category/subcategory filters are treated as separate jobs, even for the same promotion ID.
+
+**Example:**
+```bash
+# First call - creates new job
+GET /api/products/B08N5WRWNW?category=Livros
+# Returns: { "promotionJob": { "jobId": "abc-123", "status": "pending" } }
+
+# Second call with same category - returns existing job
+GET /api/products/B08N5WRWNX?category=Livros
+# Returns: { "promotionJob": { "jobId": "abc-123", "status": "running" } }
+
+# Third call with different category - creates new job
+GET /api/products/B08N5WRWNX?category=Eletrônicos
+# Returns: { "promotionJob": { "jobId": "def-456", "status": "pending" } }
+```
+
+This prevents unnecessary duplicate scraping and saves resources when processing multiple products with the same promotion.
+
 ## Examples
 
 ### Example 1: Verify Product and Get Promo Code
@@ -287,10 +453,27 @@ Currently, there is no rate limiting enforced. However, please be respectful:
 curl http://localhost:3000/api/products/B08N5WRWNW
 ```
 
-### Example 2: Start Promotion Scraping with Filters
+### Example 2: Verify Product with Category Filter
 
 ```bash
-curl -X POST http://localhost:3000/api/products/scrape \
+curl "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
+```
+
+### Example 3: Batch Product Check
+
+```bash
+curl -X POST http://localhost:3000/api/products/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asins": ["B08N5WRWNW", "B08N5WRWNX", "B08N5WRWNY"],
+    "category": "Livros"
+  }'
+```
+
+### Example 4: Start Promotion Scraping with Filters
+
+```bash
+curl -X POST http://localhost:3000/api/promotions/scrape \
   -H "Content-Type: application/json" \
   -d '{
     "promotionId": "A2P3X1AN29HWHX",
@@ -299,19 +482,19 @@ curl -X POST http://localhost:3000/api/products/scrape \
   }'
 ```
 
-### Example 3: Check Job Status
+### Example 5: Check Job Status
 
 ```bash
 curl http://localhost:3000/api/promotions/jobs/550e8400-e29b-41d4-a716-446655440000
 ```
 
-### Example 4: Get Cached Promotion
+### Example 6: Get Cached Promotion
 
 ```bash
 curl "http://localhost:3000/api/promotions/A2P3X1AN29HWHX?category=Livros"
 ```
 
-### Example 5: Health Check
+### Example 7: Health Check
 
 ```bash
 curl http://localhost:3000/api/health
@@ -321,9 +504,11 @@ curl http://localhost:3000/api/health
 
 ## Workflow Example
 
+### Single Product Workflow
+
 1. **Check product for promo code:**
    ```
-   GET /api/products/B08N5WRWNW
+   GET /api/products/B08N5WRWNW?category=Livros
    ```
 
 2. **If promo code found, a job is automatically created. Check job status:**
@@ -337,8 +522,35 @@ curl http://localhost:3000/api/health
 
 5. **Subsequent requests can use cached data:**
    ```
-   GET /api/promotions/A2P3X1AN29HWHX
+   GET /api/promotions/A2P3X1AN29HWHX?category=Livros
    ```
+
+### Batch Product Workflow (Recommended for Hourly Checks)
+
+1. **Check multiple products at once (e.g., every hour):**
+   ```bash
+   POST /api/products/batch
+   {
+     "asins": ["ASIN1", "ASIN2", "ASIN3", "ASIN4", "ASIN5", 
+               "ASIN6", "ASIN7", "ASIN8", "ASIN9", "ASIN10"],
+     "category": "Livros"
+   }
+   ```
+
+2. **Response includes all products and any triggered promotion jobs**
+
+3. **For products with promo codes, jobs are automatically created (or existing jobs returned if already running)**
+
+4. **Check individual job statuses as needed:**
+   ```
+   GET /api/promotions/jobs/{jobId}
+   ```
+
+5. **Benefits:**
+   - Concurrent fetching for better performance
+   - Automatic duplicate prevention
+   - Individual errors don't fail entire batch
+   - Perfect for scheduled checks
 
 ---
 

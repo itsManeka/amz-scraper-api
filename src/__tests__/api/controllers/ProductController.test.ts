@@ -42,6 +42,7 @@ describe('ProductController', () => {
         it('should return product without promo code', async () => {
             const product = new Product('B08N5WRWNW');
             mockRequest.params = { asin: 'B08N5WRWNW' };
+            mockRequest.query = {};
 
             mockGetProductUseCase.execute.mockResolvedValue(product);
 
@@ -71,6 +72,7 @@ describe('ProductController', () => {
             });
 
             mockRequest.params = { asin: 'B08N5WRWNW' };
+            mockRequest.query = {};
             mockGetProductUseCase.execute.mockResolvedValue(product);
             mockStartPromotionScrapingUseCase.execute.mockResolvedValue(job);
 
@@ -97,6 +99,7 @@ describe('ProductController', () => {
             const product = new Product('B08N5WRWNW', promoCode);
 
             mockRequest.params = { asin: 'B08N5WRWNW' };
+            mockRequest.query = {};
             mockGetProductUseCase.execute.mockResolvedValue(product);
 
             await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
@@ -113,6 +116,7 @@ describe('ProductController', () => {
         it('should call next with error when getProduct fails', async () => {
             const error = new Error('Network error');
             mockRequest.params = { asin: 'B08N5WRWNW' };
+            mockRequest.query = {};
 
             mockGetProductUseCase.execute.mockRejectedValue(error);
 
@@ -133,6 +137,7 @@ describe('ProductController', () => {
             const error = new Error('Job creation failed');
 
             mockRequest.params = { asin: 'B08N5WRWNW' };
+            mockRequest.query = {};
             mockGetProductUseCase.execute.mockResolvedValue(product);
             mockStartPromotionScrapingUseCase.execute.mockRejectedValue(error);
 

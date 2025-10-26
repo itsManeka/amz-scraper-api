@@ -1,4 +1,4 @@
-import { Job, JobStatus } from '../../domain/entities/Job';
+import { Job, JobStatus, JobMetadata } from '../../domain/entities/Job';
 
 /**
  * Job manager interface for managing asynchronous jobs
@@ -8,9 +8,10 @@ export interface IJobManager {
      * Creates a new job
      * @param type - Job type identifier
      * @param executor - Function that executes the job
+     * @param metadata - Optional metadata to store with the job
      * @returns Created job
      */
-    createJob<T>(type: string, executor: () => Promise<T>): Promise<Job<T>>;
+    createJob<T>(type: string, executor: () => Promise<T>, metadata?: JobMetadata): Promise<Job<T>>;
 
     /**
      * Gets a job by ID
@@ -18,6 +19,21 @@ export interface IJobManager {
      * @returns Job or null if not found
      */
     getJob<T>(jobId: string): Promise<Job<T> | null>;
+
+    /**
+     * Finds a job by promotion ID and optional filters
+     * Returns existing job if pending, running, or successfully completed
+     * Returns null if only failed jobs exist (allowing retry)
+     * @param promotionId - Promotion ID
+     * @param category - Optional category filter
+     * @param subcategory - Optional subcategory filter
+     * @returns Job or null
+     */
+    findJobByPromotion(
+        promotionId: string,
+        category?: string,
+        subcategory?: string
+    ): Promise<Job | null>;
 
     /**
      * Lists all jobs

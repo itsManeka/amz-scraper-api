@@ -13,6 +13,16 @@ export interface JobProgress {
 }
 
 /**
+ * Job metadata for storing additional information
+ */
+export interface JobMetadata {
+    promotionId?: string;
+    category?: string;
+    subcategory?: string;
+    [key: string]: unknown;
+}
+
+/**
  * Represents an asynchronous job for long-running tasks
  */
 export class Job<T = unknown> {
@@ -25,6 +35,7 @@ export class Job<T = unknown> {
     readonly progress: JobProgress | null;
     readonly result: T | null;
     readonly error: string | null;
+    readonly metadata: JobMetadata | null;
 
     constructor(data: {
         id: string;
@@ -36,6 +47,7 @@ export class Job<T = unknown> {
         progress?: JobProgress | null;
         result?: T | null;
         error?: string | null;
+        metadata?: JobMetadata | null;
     }) {
         this.validateData(data);
 
@@ -48,6 +60,7 @@ export class Job<T = unknown> {
         this.progress = data.progress || null;
         this.result = data.result || null;
         this.error = data.error || null;
+        this.metadata = data.metadata || null;
     }
 
     private validateData(data: {
@@ -165,6 +178,7 @@ export class Job<T = unknown> {
         progress: JobProgress | null;
         result: T | null;
         error: string | null;
+        metadata: JobMetadata | null;
     } {
         return {
             id: this.id,
@@ -176,6 +190,7 @@ export class Job<T = unknown> {
             progress: this.progress,
             result: this.result,
             error: this.error,
+            metadata: this.metadata,
         };
     }
 }

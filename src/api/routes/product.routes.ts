@@ -11,6 +11,14 @@ export function createProductRoutes(controller: ProductController): Router {
     const router = Router();
 
     /**
+     * POST /api/products/batch
+     * Get multiple products by ASINs (max 10)
+     */
+    router.post('/batch', ValidateRequest.batchProductRequest, (req, res, next) =>
+        controller.getProductsBatch(req, res, next)
+    );
+
+    /**
      * GET /api/products/:asin
      * Get product information by ASIN
      */

@@ -313,6 +313,7 @@ describe('Job Entity', () => {
                 progress: null,
                 result: null,
                 error: null,
+                metadata: null,
             });
         });
 
@@ -347,6 +348,7 @@ describe('Job Entity', () => {
                 progress,
                 result,
                 error: 'test error',
+                metadata: null,
             });
         });
     });

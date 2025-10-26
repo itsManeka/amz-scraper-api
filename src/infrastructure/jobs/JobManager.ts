@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Job, JobStatus } from '../../domain/entities/Job';
+import { Job, JobStatus, JobMetadata } from '../../domain/entities/Job';
 import { IJobManager } from './IJobManager';
 import { IStorage } from '../storage/IStorage';
 import { StorageKeys } from '../storage/StorageKeys';
@@ -42,6 +42,7 @@ export class JobManager implements IJobManager {
                             createdAt: new Date(jobData.createdAt),
                             startedAt: jobData.startedAt ? new Date(jobData.startedAt) : null,
                             completedAt: jobData.completedAt ? new Date(jobData.completedAt) : null,
+                            metadata: jobData.metadata || null,
                         });
 
                         // Mark running jobs as failed (they didn't complete before shutdown)
@@ -69,13 +70,14 @@ export class JobManager implements IJobManager {
     /**
      * Creates a new job and starts execution
      */
-    async createJob<T>(type: string, executor: () => Promise<T>): Promise<Job<T>> {
+    async createJob<T>(type: string, executor: () => Promise<T>, metadata?: JobMetadata): Promise<Job<T>> {
         const jobId = uuidv4();
         const job = new Job<T>({
             id: jobId,
             type,
             status: 'pending',
             createdAt: new Date(),
+            metadata: metadata || null,
         });
 
         this.jobs.set(jobId, job);
@@ -95,6 +97,50 @@ export class JobManager implements IJobManager {
     async getJob<T>(jobId: string): Promise<Job<T> | null> {
         const job = this.jobs.get(jobId);
         return job ? (job as Job<T>) : null;
+    }
+
+    /**
+     * Finds a job by promotion ID and optional filters
+     * Returns existing job if pending, running, or successfully completed
+     * Returns null if only failed jobs exist (allowing retry)
+     */
+    async findJobByPromotion(
+        promotionId: string,
+        category?: string,
+        subcategory?: string
+    ): Promise<Job | null> {
+        // Find all jobs with matching promotion metadata
+        const matchingJobs = Array.from(this.jobs.values()).filter((job) => {
+            if (!job.metadata || job.metadata.promotionId !== promotionId) {
+                return false;
+            }
+
+            // Check category match
+            const categoryMatch = 
+                (category === undefined && job.metadata.category === undefined) ||
+                job.metadata.category === category;
+
+            // Check subcategory match
+            const subcategoryMatch =
+                (subcategory === undefined && job.metadata.subcategory === undefined) ||
+                job.metadata.subcategory === subcategory;
+
+            return categoryMatch && subcategoryMatch;
+        });
+
+        // If no matching jobs, return null (allow new job)
+        if (matchingJobs.length === 0) {
+            return null;
+        }
+
+        // Check if any non-failed job exists
+        const nonFailedJob = matchingJobs.find(
+            (job) => job.isPending() || job.isRunning() || 
+            (job.status === 'completed' && !job.hasFailed())
+        );
+
+        // Return non-failed job if exists, otherwise null (allow retry of failed jobs)
+        return nonFailedJob || null;
     }
 
     /**
