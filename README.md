@@ -2,7 +2,7 @@
 
 > REST API for extracting product information and promotional codes from Amazon Brazil (amazon.com.br)
 
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.8.1-brightgreen)](https://nodejs.org)
 [![Build Status](https://github.com/itsManeka/amz-scraper/workflows/Build%2C%20Test%20%26%20Publish/badge.svg)](https://github.com/itsManeka/amz-scraper/actions)
 [![codecov](https://codecov.io/gh/itsManeka/amz-scraper-api/graph/badge.svg?token=MAYE29G36S)](https://codecov.io/gh/itsManeka/amz-scraper-api)
 [![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper)](https://github.com/itsManeka/amz-scraper/releases)
@@ -34,7 +34,7 @@ Built with **Clean Architecture** principles:
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
+- Node.js >= 20.8.1
 - npm or yarn
 
 ### Installation
