@@ -4,7 +4,8 @@
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Build Status](https://github.com/itsManeka/amz-scraper/workflows/Build%2C%20Test%20%26%20Publish/badge.svg)](https://github.com/itsManeka/amz-scraper/actions)
-[![codecov](https://codecov.io/github/itsManeka/amz-scraper/graph/badge.svg?token=YRAC35KTCZ)](https://codecov.io/github/itsManeka/amz-scraper)
+[![codecov](https://codecov.io/gh/itsManeka/amz-scraper-api/graph/badge.svg?token=MAYE29G36S)](https://codecov.io/gh/itsManeka/amz-scraper-api)
+[![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper)](https://github.com/itsManeka/amz-scraper/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
@@ -18,6 +19,7 @@
 - ✅ **Caching**: Reduce scraping frequency with intelligent caching
 - ✅ **Clean Architecture**: Maintainable, testable, SOLID principles
 - ✅ **Zero External Costs**: No paid databases or Redis required
+- ✅ **CI/CD Pipeline**: Automated testing, versioning, and deployment
 
 ## Architecture
 
@@ -282,6 +284,40 @@ npm run test:watch
 
 Current test coverage: **80%+**
 
+## CI/CD Pipeline
+
+The project uses **GitHub Actions** for continuous integration and deployment:
+
+### Automated Workflow
+
+- ✅ **Pull Requests**: Runs tests and coverage checks on every PR
+- ✅ **Main Branch**: Full pipeline on merge to main
+  - Runs all tests with 80% minimum coverage requirement
+  - Automatically versions releases using [Semantic Versioning](https://semver.org/)
+  - Generates CHANGELOG.md automatically
+  - Creates GitHub releases with release notes
+  - Deploys to Render.com automatically
+
+### Conventional Commits
+
+All commits **must** follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```bash
+feat: add new feature        # Minor release (1.0.0 → 1.1.0)
+fix: bug correction          # Patch release (1.1.0 → 1.1.1)
+feat!: breaking change       # Major release (1.1.1 → 2.0.0)
+```
+
+### Deployment
+
+Deployment to Render.com happens automatically when:
+1. All tests pass (100%)
+2. Coverage is >= 80%
+3. Commits follow Conventional Commits format
+4. Changes are merged to `main` branch
+
+See [Deployment Guide](docs/DEPLOYMENT.md) for detailed CI/CD documentation.
+
 ## Browser Fingerprinting Strategies
 
 To avoid detection, the API implements:
@@ -330,11 +366,14 @@ Contributions are welcome! Please follow these guidelines:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Follow existing code style (run `npm run lint:fix`)
-4. Add tests for new features
+4. Add tests for new features (maintain >= 80% coverage)
 5. Ensure all tests pass (`npm test`)
-6. Commit with descriptive messages
-7. Push to your fork
-8. Open a Pull Request
+6. Use Conventional Commits format for commit messages
+7. Push to your fork and open a Pull Request
+
+**Important**: All commits must follow [Conventional Commits](https://www.conventionalcommits.org/) format for automatic versioning.
+
+See [Deployment Guide](docs/DEPLOYMENT.md) for CI/CD details.
 
 ## License
 
@@ -347,6 +386,7 @@ This project is for educational and research purposes only. Users are responsibl
 ## Support
 
 - 📝 [API Documentation](docs/API.md)
+- 🚀 [Deployment Guide](docs/DEPLOYMENT.md)
 - 🐛 [Issue Tracker](https://github.com/itsmaneka/amz-scraper/issues)
 - 💬 [Discussions](https://github.com/itsmaneka/amz-scraper/discussions)
 

@@ -62,6 +62,8 @@ Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosa
 - Use Conventional Commits
 - Prefixos: feat, fix, docs, test, refactor, chore
 - Commits em inglês
+- **IMPORTANTE**: Conventional Commits são obrigatórios para versionamento automático
+- Consulte `.cursor/rules/07-cicd.mdc` para detalhes sobre CI/CD
 
 Para regras específicas, consulte arquivos em `.cursor/rules/`.
 
@@ -123,6 +125,8 @@ Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosa
 - Use Conventional Commits
 - Prefixos: feat, fix, docs, test, refactor, chore
 - Commits em inglês
+- **IMPORTANTE**: Conventional Commits são obrigatórios para versionamento automático
+- Consulte `.cursor/rules/07-cicd.mdc` para detalhes sobre CI/CD
 
 Para regras específicas, consulte arquivos na pasta .cursor/rules/.
 
