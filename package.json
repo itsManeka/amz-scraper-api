@@ -29,12 +29,12 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/itsmaneka/amz-scraper.git"
+		"url": "https://github.com/itsManeka/amz-scraper-api.git"
 	},
 	"bugs": {
-		"url": "https://github.com/itsmaneka/amz-scraper/issues"
+		"url": "https://github.com/itsManeka/amz-scraper-api/issues"
 	},
-	"homepage": "https://github.com/itsmaneka/amz-scraper#readme",
+	"homepage": "https://github.com/itsManeka/amz-scraper-api#readme",
 	"dependencies": {
 		"@types/express": "^4.17.17",
 		"@types/node": "^20.9.0",

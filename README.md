@@ -3,9 +3,9 @@
 > REST API for extracting product information and promotional codes from Amazon Brazil (amazon.com.br)
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.8.1-brightgreen)](https://nodejs.org)
-[![Build Status](https://github.com/itsManeka/amz-scraper/workflows/Build%2C%20Test%20%26%20Publish/badge.svg)](https://github.com/itsManeka/amz-scraper/actions)
+[![Build Status](https://github.com/itsManeka/amz-scraper-api/workflows/Build%2C%20Test%20%26%20Publish/badge.svg)](https://github.com/itsManeka/amz-scraper-api/actions)
 [![codecov](https://codecov.io/gh/itsManeka/amz-scraper-api/graph/badge.svg?token=MAYE29G36S)](https://codecov.io/gh/itsManeka/amz-scraper-api)
-[![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper)](https://github.com/itsManeka/amz-scraper/releases)
+[![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper)](https://github.com/itsManeka/amz-scraper-api/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
@@ -387,8 +387,8 @@ This project is for educational and research purposes only. Users are responsibl
 
 - 📝 [API Documentation](docs/API.md)
 - 🚀 [Deployment Guide](docs/DEPLOYMENT.md)
-- 🐛 [Issue Tracker](https://github.com/itsmaneka/amz-scraper/issues)
-- 💬 [Discussions](https://github.com/itsmaneka/amz-scraper/discussions)
+- 🐛 [Issue Tracker](https://github.com/itsmaneka/amz-scraper-api/issues)
+- 💬 [Discussions](https://github.com/itsmaneka/amz-scraper-api/discussions)
 
 ## Changelog
 

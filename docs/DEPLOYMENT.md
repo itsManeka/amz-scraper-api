@@ -166,7 +166,7 @@ BREAKING CHANGE: promotionId is now required parameter
 ### GitHub Actions
 
 Monitor workflow runs:
-1. Go to: https://github.com/itsmaneka/amz-scraper/actions
+1. Go to: https://github.com/itsmaneka/amz-scraper-api/actions
 2. View logs for each job
 3. Check test results and coverage reports
 

@@ -120,5 +120,5 @@ If migrating from the NPM package version:
 
 ---
 
-[1.0.0]: https://github.com/itsmaneka/amz-scraper/releases/tag/v1.0.0
+[1.0.0]: https://github.com/itsmaneka/amz-scraper-api/releases/tag/v1.0.0
 

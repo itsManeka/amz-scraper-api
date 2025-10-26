@@ -356,5 +356,5 @@ curl http://localhost:3000/api/health
 ## Support
 
 For issues or questions, please open an issue on GitHub:
-https://github.com/itsmaneka/amz-scraper/issues
+https://github.com/itsmaneka/amz-scraper-api/issues
 
