@@ -71,6 +71,10 @@ export const BookSubcategory = {
     SUSPENSE: 'Suspense e Thriller',
     NEGOCIOS: 'Negócios e Economia',
     HISTORIA: 'História',
+    FANTASY_GRAPHIC_NOVELS: 'Fantasia em Graphic Novels',
+    MYSTERY_GRAPHIC_NOVELS: 'Mistério em Graphic Novels',
+    HORROR_GRAPHIC_NOVELS: 'Horror em Graphic Novels',
+    LITERARY_GRAPHIC_NOVELS: 'Literárias em Graphic Novels',
 } as const;
 
 /**
