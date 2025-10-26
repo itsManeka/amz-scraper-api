@@ -23,11 +23,7 @@ describe('ValidateRequest', () => {
         it('should pass validation for valid ASIN', () => {
             mockRequest.params = { asin: 'B08N5WRWNW' };
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).toHaveBeenCalled();
             expect(mockResponse.status).not.toHaveBeenCalled();
@@ -37,11 +33,7 @@ describe('ValidateRequest', () => {
         it('should fail when ASIN is missing', () => {
             mockRequest.params = {};
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -57,11 +49,7 @@ describe('ValidateRequest', () => {
         it('should fail when ASIN is not a string', () => {
             mockRequest.params = { asin: 123 as any };
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -70,11 +58,7 @@ describe('ValidateRequest', () => {
         it('should fail when ASIN is not 10 characters', () => {
             mockRequest.params = { asin: 'B08N5' };
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -90,11 +74,7 @@ describe('ValidateRequest', () => {
         it('should fail when ASIN contains special characters', () => {
             mockRequest.params = { asin: 'B08N5WRWN!' };
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -103,11 +83,7 @@ describe('ValidateRequest', () => {
         it('should pass validation for ASIN with lowercase letters', () => {
             mockRequest.params = { asin: 'b08n5wrwnw' };
 
-            ValidateRequest.asin(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.asin(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).toHaveBeenCalled();
         });
@@ -117,11 +93,7 @@ describe('ValidateRequest', () => {
         it('should pass validation for valid promotion ID', () => {
             mockRequest.params = { promotionId: 'ABC123XYZ' };
 
-            ValidateRequest.promotionId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.promotionId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).toHaveBeenCalled();
             expect(mockResponse.status).not.toHaveBeenCalled();
@@ -130,11 +102,7 @@ describe('ValidateRequest', () => {
         it('should fail when promotion ID is missing', () => {
             mockRequest.params = {};
 
-            ValidateRequest.promotionId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.promotionId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -150,11 +118,7 @@ describe('ValidateRequest', () => {
         it('should fail when promotion ID is not a string', () => {
             mockRequest.params = { promotionId: 123 as any };
 
-            ValidateRequest.promotionId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.promotionId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -163,11 +127,7 @@ describe('ValidateRequest', () => {
         it('should fail when promotion ID is empty after trim', () => {
             mockRequest.params = { promotionId: '   ' };
 
-            ValidateRequest.promotionId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.promotionId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -183,11 +143,7 @@ describe('ValidateRequest', () => {
         it('should fail when promotion ID contains special characters', () => {
             mockRequest.params = { promotionId: 'ABC-123' };
 
-            ValidateRequest.promotionId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.promotionId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -198,11 +154,7 @@ describe('ValidateRequest', () => {
         it('should pass validation for valid job ID', () => {
             mockRequest.params = { jobId: 'job-123' };
 
-            ValidateRequest.jobId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.jobId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).toHaveBeenCalled();
             expect(mockResponse.status).not.toHaveBeenCalled();
@@ -211,11 +163,7 @@ describe('ValidateRequest', () => {
         it('should fail when job ID is missing', () => {
             mockRequest.params = {};
 
-            ValidateRequest.jobId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.jobId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -231,11 +179,7 @@ describe('ValidateRequest', () => {
         it('should fail when job ID is not a string', () => {
             mockRequest.params = { jobId: 123 as any };
 
-            ValidateRequest.jobId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.jobId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -244,11 +188,7 @@ describe('ValidateRequest', () => {
         it('should fail when job ID is empty after trim', () => {
             mockRequest.params = { jobId: '   ' };
 
-            ValidateRequest.jobId(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            ValidateRequest.jobId(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockNext).not.toHaveBeenCalled();
             expect(mockResponse.status).toHaveBeenCalledWith(400);
@@ -458,4 +398,3 @@ describe('ValidateRequest', () => {
         });
     });
 });
-

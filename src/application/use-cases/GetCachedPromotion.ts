@@ -26,11 +26,7 @@ export class GetCachedPromotion {
             throw new Error('Promotion ID is required and must be a non-empty string');
         }
 
-        const cacheKey = StorageKeys.promotionKey(
-            promotionId.trim(),
-            category,
-            subcategory
-        );
+        const cacheKey = StorageKeys.promotionKey(promotionId.trim(), category, subcategory);
 
         const cachedData = await this.cache.get<Promotion>(cacheKey);
 
@@ -63,4 +59,3 @@ export class GetCachedPromotion {
         await this.cache.set(cacheKey, promotion, ttlSeconds);
     }
 }
-

@@ -119,7 +119,10 @@ export class ValidateRequest {
             return;
         }
 
-        if (category !== undefined && (typeof category !== 'string' || category.trim().length === 0)) {
+        if (
+            category !== undefined &&
+            (typeof category !== 'string' || category.trim().length === 0)
+        ) {
             res.status(400).json({
                 error: {
                     message: 'category must be a non-empty string if provided',
@@ -130,7 +133,10 @@ export class ValidateRequest {
             return;
         }
 
-        if (subcategory !== undefined && (typeof subcategory !== 'string' || subcategory.trim().length === 0)) {
+        if (
+            subcategory !== undefined &&
+            (typeof subcategory !== 'string' || subcategory.trim().length === 0)
+        ) {
             res.status(400).json({
                 error: {
                     message: 'subcategory must be a non-empty string if provided',
@@ -155,4 +161,3 @@ export class ValidateRequest {
         next();
     }
 }
-

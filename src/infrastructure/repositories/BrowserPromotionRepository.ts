@@ -68,7 +68,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             // Override navigator properties to match user agent
             await page.evaluateOnNewDocument((platform: string) => {
-                // @ts-ignore - Overriding navigator in browser context
+                // @ts-expect-error - Overriding navigator in browser context
                 Object.defineProperty(navigator, 'platform', {
                     get: () => platform,
                 });
@@ -185,12 +185,12 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             // Try to find and click the subcategory filter
             const filterClicked = await page.evaluate((subcat: string) => {
-                // @ts-ignore - DOM access in browser context
+                // @ts-expect-error - DOM access in browser context
                 const filters = Array.from(document.querySelectorAll('a, span, div'));
                 for (const element of filters) {
-                    // @ts-ignore - DOM element in browser context
+                    // @ts-expect-error - DOM element in browser context
                     if (element.textContent?.trim() === subcat) {
-                        // @ts-ignore - DOM element in browser context
+                        // @ts-expect-error - DOM element in browser context
                         (element as HTMLElement).click();
                         return true;
                     }
@@ -199,10 +199,14 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             }, subcategory);
 
             if (filterClicked) {
-                console.log('[BrowserPromotionRepository] Subcategory filter clicked, waiting for page update');
-                await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => { });
+                console.log(
+                    '[BrowserPromotionRepository] Subcategory filter clicked, waiting for page update'
+                );
+                await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => {});
             } else {
-                console.warn(`[BrowserPromotionRepository] Subcategory filter not found: ${subcategory}`);
+                console.warn(
+                    `[BrowserPromotionRepository] Subcategory filter not found: ${subcategory}`
+                );
             }
         } catch (error) {
             console.warn('[BrowserPromotionRepository] Error applying subcategory filter:', error);
@@ -224,12 +228,12 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 // Try to find "Show More" button by text content using page.evaluate
                 // Puppeteer doesn't support :has-text() selector (that's Playwright syntax)
                 const buttonFound = await page.evaluate(() => {
-                    // @ts-ignore - DOM access in browser context
+                    // @ts-expect-error - DOM access in browser context
                     const buttons = Array.from(document.querySelectorAll('button, a'));
                     for (const button of buttons) {
-                        // @ts-ignore - DOM element in browser context
+                        // @ts-expect-error - DOM element in browser context
                         const text = button.textContent?.toLowerCase() || '';
-                        // @ts-ignore - Check aria-label too
+                        // @ts-expect-error - Check aria-label too
                         const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
 
                         if (
@@ -239,7 +243,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                             ariaLabel.includes('more') ||
                             ariaLabel.includes('mais')
                         ) {
-                            // @ts-ignore - DOM element in browser context
+                            // @ts-expect-error - DOM element in browser context
                             (button as HTMLElement).click();
                             return true;
                         }
@@ -255,10 +259,12 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 }
 
                 clickCount++;
-                console.log(`[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`);
+                console.log(
+                    `[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`
+                );
 
                 // Wait for new products to load
-                await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => { });
+                await page.waitForFunction(() => true, { timeout: 1500 }).catch(() => {});
             }
 
             if (clickCount >= maxClicks) {
@@ -291,4 +297,3 @@ export class BrowserPromotionRepository implements IPromotionRepository {
         }
     }
 }
-

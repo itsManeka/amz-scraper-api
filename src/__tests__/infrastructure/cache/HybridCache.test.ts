@@ -10,7 +10,7 @@ describe('HybridCache', () => {
     let cache: HybridCache;
     let mockStorage: jest.Mocked<IStorage>;
     let mockNodeCache: jest.Mocked<NodeCache>;
-    let expiredCallback: (key: string, value: any) => void;
+    let expiredCallback: (key: string, value: unknown) => void;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -37,7 +37,7 @@ describe('HybridCache', () => {
                 }
                 return mockNodeCache;
             }),
-        } as any;
+        } as unknown as jest.Mocked<NodeCache>;
 
         (NodeCache as jest.MockedClass<typeof NodeCache>).mockImplementation(() => mockNodeCache);
     });
@@ -91,10 +91,7 @@ describe('HybridCache', () => {
 
         it('should load valid cache entries from storage', async () => {
             const futureTime = Date.now() + 10000;
-            mockStorage.listKeys.mockResolvedValue([
-                'cache:test1',
-                'cache:test2',
-            ]);
+            mockStorage.listKeys.mockResolvedValue(['cache:test1', 'cache:test2']);
             mockStorage.get
                 .mockResolvedValueOnce({ value: 'value1', ttl: futureTime })
                 .mockResolvedValueOnce({ value: 'value2', ttl: futureTime });
@@ -193,13 +190,10 @@ describe('HybridCache', () => {
         it('should backup to storage', async () => {
             await cache.set('key', 'value', 600);
 
-            expect(mockStorage.save).toHaveBeenCalledWith(
-                StorageKeys.cacheKey('key'),
-                {
-                    value: 'value',
-                    ttl: expect.any(Number),
-                }
-            );
+            expect(mockStorage.save).toHaveBeenCalledWith(StorageKeys.cacheKey('key'), {
+                value: 'value',
+                ttl: expect.any(Number),
+            });
         });
 
         it('should not throw if storage backup fails', async () => {
@@ -367,9 +361,7 @@ describe('HybridCache', () => {
         });
 
         it('should return cache statistics', async () => {
-            mockNodeCache.get
-                .mockReturnValueOnce('value')
-                .mockReturnValueOnce(undefined);
+            mockNodeCache.get.mockReturnValueOnce('value').mockReturnValueOnce(undefined);
             mockNodeCache.keys.mockReturnValue(['key1', 'key2', 'key3']);
 
             await cache.get('hit');
@@ -417,4 +409,3 @@ describe('HybridCache', () => {
         });
     });
 });
-

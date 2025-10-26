@@ -68,7 +68,7 @@ export class AmazonScraper {
         const httpClient = new HttpClient(httpConfig);
         const parser = new AmazonHtmlParser();
         const productRepository = new ProductRepository(httpClient, parser);
-        
+
         // Use browser-based repository for promotions
         const promotionRepository = new BrowserPromotionRepository(config.timeout || 30000);
 

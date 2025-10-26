@@ -54,7 +54,9 @@ export async function createApp(config: AppConfig): Promise<Express> {
     const httpClient = new HttpClient({});
     const htmlParser = new AmazonHtmlParser();
     const productRepository = new ProductRepository(httpClient, htmlParser);
-    const promotionRepository = new BrowserPromotionRepository(config.jobTimeoutMinutes * 60 * 1000);
+    const promotionRepository = new BrowserPromotionRepository(
+        config.jobTimeoutMinutes * 60 * 1000
+    );
 
     // Initialize use cases
     const getProductUseCase = new GetProductWithPromoCode(productRepository);
@@ -112,14 +114,16 @@ export async function createApp(config: AppConfig): Promise<Express> {
     app.use(errorHandler);
 
     // Schedule cleanup of old jobs
-    setInterval(async () => {
-        try {
-            await jobManager.clearCompletedJobs(config.jobTimeoutMinutes);
-        } catch (error) {
-            console.error('[App] Error clearing completed jobs:', error);
-        }
-    }, 60 * 60 * 1000); // Every hour
+    setInterval(
+        async () => {
+            try {
+                await jobManager.clearCompletedJobs(config.jobTimeoutMinutes);
+            } catch (error) {
+                console.error('[App] Error clearing completed jobs:', error);
+            }
+        },
+        60 * 60 * 1000
+    ); // Every hour
 
     return app;
 }
-

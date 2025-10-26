@@ -40,5 +40,9 @@ export interface IHttpClient {
      * @returns Promise resolving to the response data
      * @throws {Error} If request fails
      */
-    post(url: string, data: Record<string, any> | string, config?: HttpClientConfig): Promise<any>;
+    post<TResponse = unknown>(
+        url: string,
+        data: Record<string, unknown> | string,
+        config?: HttpClientConfig
+    ): Promise<TResponse>;
 }

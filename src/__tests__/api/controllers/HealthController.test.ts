@@ -35,11 +35,7 @@ describe('HealthController', () => {
 
             mockJobManager.getStats.mockResolvedValue(mockStats);
 
-            await controller.getHealth(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getHealth(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockJobManager.getStats).toHaveBeenCalled();
             expect(mockResponse.json).toHaveBeenCalledWith({
@@ -55,11 +51,7 @@ describe('HealthController', () => {
             const error = new Error('Database error');
             mockJobManager.getStats.mockRejectedValue(error);
 
-            await controller.getHealth(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getHealth(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockJobManager.getStats).toHaveBeenCalled();
             expect(mockResponse.json).not.toHaveBeenCalled();
@@ -67,4 +59,3 @@ describe('HealthController', () => {
         });
     });
 });
-

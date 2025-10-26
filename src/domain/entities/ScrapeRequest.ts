@@ -36,7 +36,10 @@ export class ScrapeRequest {
             throw new Error('Category must be a non-empty string or null');
         }
 
-        if (subcategory !== null && (typeof subcategory !== 'string' || subcategory.trim().length === 0)) {
+        if (
+            subcategory !== null &&
+            (typeof subcategory !== 'string' || subcategory.trim().length === 0)
+        ) {
             throw new Error('Subcategory must be a non-empty string or null');
         }
 
@@ -78,4 +81,3 @@ export class ScrapeRequest {
         };
     }
 }
-

@@ -66,9 +66,7 @@ export class Job<T = unknown> {
 
         const validStatuses: JobStatus[] = ['pending', 'running', 'completed', 'failed'];
         if (!validStatuses.includes(data.status)) {
-            throw new Error(
-                `Job status must be one of: ${validStatuses.join(', ')}`
-            );
+            throw new Error(`Job status must be one of: ${validStatuses.join(', ')}`);
         }
 
         if (!(data.createdAt instanceof Date)) {
@@ -112,7 +110,8 @@ export class Job<T = unknown> {
             ...this.toJSON(),
             status,
             startedAt: status === 'running' ? new Date() : this.startedAt,
-            completedAt: status === 'completed' || status === 'failed' ? new Date() : this.completedAt,
+            completedAt:
+                status === 'completed' || status === 'failed' ? new Date() : this.completedAt,
         });
     }
 
@@ -180,4 +179,3 @@ export class Job<T = unknown> {
         };
     }
 }
-

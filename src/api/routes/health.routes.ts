@@ -17,4 +17,3 @@ export function createHealthRoutes(controller: HealthController): Router {
 
     return router;
 }
-

@@ -200,7 +200,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const updatedJob = await jobManager.getJob(job.id);
             expect(updatedJob?.status).toBe('completed');
@@ -214,7 +214,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to fail
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const updatedJob = await jobManager.getJob(job.id);
             expect(updatedJob?.hasFailed()).toBe(true);
@@ -227,7 +227,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to fail
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const updatedJob = await jobManager.getJob(job.id);
             expect(updatedJob?.hasFailed()).toBe(true);
@@ -241,7 +241,7 @@ describe('JobManager', () => {
             await jobManager.createJob('test', executor);
 
             // Wait for error handling
-            await new Promise(resolve => setTimeout(resolve, 150));
+            await new Promise((resolve) => setTimeout(resolve, 150));
 
             // The error is handled in executeJob, which sets the job as failed
             // The console.error in the catch of createJob's async executor should be called
@@ -268,7 +268,7 @@ describe('JobManager', () => {
             const executor = jest.fn().mockImplementation(async (_id: number) => {
                 runningCount++;
                 maxRunning = Math.max(maxRunning, runningCount);
-                await new Promise(resolve => setTimeout(resolve, 50));
+                await new Promise((resolve) => setTimeout(resolve, 50));
                 runningCount--;
                 return 'result';
             });
@@ -280,11 +280,11 @@ describe('JobManager', () => {
 
             // Wait for all jobs to complete
             // Total time: 3 jobs * ~50ms each + 1s wait time per job  = ~3.15s
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            await new Promise((resolve) => setTimeout(resolve, 4000));
 
             // Verify max running never exceeded 1
             expect(maxRunning).toBeLessThanOrEqual(1);
-            
+
             // Verify all executors ran
             const stats = await jobManager.getStats();
             expect(stats.completed).toBe(3);
@@ -329,16 +329,18 @@ describe('JobManager', () => {
         });
 
         it('should filter jobs by status', async () => {
-            const pendingExecutor = jest.fn().mockImplementation(() => 
-                new Promise(resolve => setTimeout(() => resolve('result'), 1000))
-            );
+            const pendingExecutor = jest
+                .fn()
+                .mockImplementation(
+                    () => new Promise((resolve) => setTimeout(() => resolve('result'), 1000))
+                );
             const completedExecutor = jest.fn().mockResolvedValue('result');
 
             await jobManager.createJob('pending', pendingExecutor);
             await jobManager.createJob('completed', completedExecutor);
 
             // Wait for second job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const runningJobs = await jobManager.listJobs('running');
             expect(runningJobs.length).toBeGreaterThan(0);
@@ -356,7 +358,7 @@ describe('JobManager', () => {
         it('should cancel pending job', async () => {
             // Create a JobManager with 0 max concurrent jobs to keep jobs pending
             jobManager = new JobManager(mockStorage, 0);
-            
+
             const executor = jest.fn().mockResolvedValue('result');
             const job = await jobManager.createJob('test', executor);
 
@@ -370,13 +372,15 @@ describe('JobManager', () => {
         });
 
         it('should not cancel running job', async () => {
-            const executor = jest.fn().mockImplementation(() => 
-                new Promise(resolve => setTimeout(() => resolve('result'), 100))
-            );
+            const executor = jest
+                .fn()
+                .mockImplementation(
+                    () => new Promise((resolve) => setTimeout(() => resolve('result'), 100))
+                );
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to start
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise((resolve) => setTimeout(resolve, 10));
 
             const cancelled = await jobManager.cancelJob(job.id);
 
@@ -388,7 +392,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const cancelled = await jobManager.cancelJob(job.id);
 
@@ -412,7 +416,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Clear jobs older than 0 minutes (all completed jobs)
             await jobManager.clearCompletedJobs(0);
@@ -427,7 +431,7 @@ describe('JobManager', () => {
             const job = await jobManager.createJob('test', executor);
 
             // Wait for job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             // Clear jobs older than 60 minutes (default)
             await jobManager.clearCompletedJobs(60);
@@ -437,9 +441,11 @@ describe('JobManager', () => {
         });
 
         it('should not clear pending or running jobs', async () => {
-            const executor = jest.fn().mockImplementation(() => 
-                new Promise(resolve => setTimeout(() => resolve('result'), 1000))
-            );
+            const executor = jest
+                .fn()
+                .mockImplementation(
+                    () => new Promise((resolve) => setTimeout(() => resolve('result'), 1000))
+                );
             const job = await jobManager.createJob('test', executor);
 
             await jobManager.clearCompletedJobs(0);
@@ -454,7 +460,7 @@ describe('JobManager', () => {
             await jobManager.createJob('test', executor);
 
             // Wait for job to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             await jobManager.clearCompletedJobs(0);
 
@@ -474,16 +480,18 @@ describe('JobManager', () => {
         it('should return job statistics', async () => {
             const completedExecutor = jest.fn().mockResolvedValue('result');
             const failedExecutor = jest.fn().mockRejectedValue(new Error('Failed'));
-            const pendingExecutor = jest.fn().mockImplementation(() => 
-                new Promise(resolve => setTimeout(() => resolve('result'), 1000))
-            );
+            const pendingExecutor = jest
+                .fn()
+                .mockImplementation(
+                    () => new Promise((resolve) => setTimeout(() => resolve('result'), 1000))
+                );
 
             await jobManager.createJob('completed', completedExecutor);
             await jobManager.createJob('failed', failedExecutor);
             await jobManager.createJob('pending', pendingExecutor);
 
             // Wait for jobs to process
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
             const stats = await jobManager.getStats();
 
@@ -526,4 +534,3 @@ describe('JobManager', () => {
         });
     });
 });
-

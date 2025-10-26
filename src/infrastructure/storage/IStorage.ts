@@ -46,4 +46,3 @@ export interface IStorage {
      */
     clear(prefix?: string): Promise<void>;
 }
-

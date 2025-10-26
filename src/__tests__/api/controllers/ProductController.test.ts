@@ -4,6 +4,7 @@ import { GetProductWithPromoCode } from '../../../application/use-cases/GetProdu
 import { StartPromotionScraping } from '../../../application/use-cases/StartPromotionScraping';
 import { Product } from '../../../domain/entities/Product';
 import { PromoCode } from '../../../domain/entities/PromoCode';
+import { Promotion } from '../../../domain/entities/Promotion';
 import { Job } from '../../../domain/entities/Job';
 
 describe('ProductController', () => {
@@ -44,11 +45,7 @@ describe('ProductController', () => {
 
             mockGetProductUseCase.execute.mockResolvedValue(product);
 
-            await controller.getProduct(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockGetProductUseCase.execute).toHaveBeenCalledWith('B08N5WRWNW');
             expect(mockResponse.json).toHaveBeenCalledWith({
@@ -66,7 +63,7 @@ describe('ProductController', () => {
                 'ABC123XYZ'
             );
             const product = new Product('B08N5WRWNW', promoCode);
-            const job = new Job<any>({
+            const job = new Job<Promotion>({
                 id: 'job-123',
                 type: 'promotion-scraping',
                 status: 'pending',
@@ -77,11 +74,7 @@ describe('ProductController', () => {
             mockGetProductUseCase.execute.mockResolvedValue(product);
             mockStartPromotionScrapingUseCase.execute.mockResolvedValue(job);
 
-            await controller.getProduct(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockGetProductUseCase.execute).toHaveBeenCalledWith('B08N5WRWNW');
             expect(mockStartPromotionScrapingUseCase.execute).toHaveBeenCalled();
@@ -106,11 +99,7 @@ describe('ProductController', () => {
             mockRequest.params = { asin: 'B08N5WRWNW' };
             mockGetProductUseCase.execute.mockResolvedValue(product);
 
-            await controller.getProduct(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockGetProductUseCase.execute).toHaveBeenCalledWith('B08N5WRWNW');
             expect(mockStartPromotionScrapingUseCase.execute).not.toHaveBeenCalled();
@@ -127,11 +116,7 @@ describe('ProductController', () => {
 
             mockGetProductUseCase.execute.mockRejectedValue(error);
 
-            await controller.getProduct(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockGetProductUseCase.execute).toHaveBeenCalledWith('B08N5WRWNW');
             expect(mockResponse.json).not.toHaveBeenCalled();
@@ -151,11 +136,7 @@ describe('ProductController', () => {
             mockGetProductUseCase.execute.mockResolvedValue(product);
             mockStartPromotionScrapingUseCase.execute.mockRejectedValue(error);
 
-            await controller.getProduct(
-                mockRequest as Request,
-                mockResponse as Response,
-                mockNext
-            );
+            await controller.getProduct(mockRequest as Request, mockResponse as Response, mockNext);
 
             expect(mockGetProductUseCase.execute).toHaveBeenCalledWith('B08N5WRWNW');
             expect(mockStartPromotionScrapingUseCase.execute).toHaveBeenCalled();
@@ -164,4 +145,3 @@ describe('ProductController', () => {
         });
     });
 });
-

@@ -24,11 +24,7 @@ export class StorageKeys {
      * @param subcategory - Optional subcategory filter
      * @returns Storage key
      */
-    static promotionKey(
-        promotionId: string,
-        category?: string,
-        subcategory?: string
-    ): string {
+    static promotionKey(promotionId: string, category?: string, subcategory?: string): string {
         const parts = [this.PROMOTION_PREFIX, promotionId];
         if (category) {
             parts.push(category);
@@ -57,4 +53,3 @@ export class StorageKeys {
         return `${this.CACHE_PREFIX}${cacheKey}`;
     }
 }
-

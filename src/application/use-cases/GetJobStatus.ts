@@ -22,4 +22,3 @@ export class GetJobStatus {
         return await this.jobManager.getJob<T>(jobId.trim());
     }
 }
-

@@ -48,7 +48,7 @@ describe('PromotionController', () => {
 
     describe('startScraping', () => {
         it('should create scraping job successfully', async () => {
-            const job = new Job<any>({
+            const job = new Job<Promotion>({
                 id: 'job-123',
                 type: 'promotion-scraping',
                 status: 'pending',
@@ -75,7 +75,7 @@ describe('PromotionController', () => {
         });
 
         it('should create scraping job with category and subcategory', async () => {
-            const job = new Job<any>({
+            const job = new Job<Promotion>({
                 id: 'job-456',
                 type: 'promotion-scraping',
                 status: 'pending',
@@ -436,4 +436,3 @@ describe('PromotionController', () => {
         });
     });
 });
-

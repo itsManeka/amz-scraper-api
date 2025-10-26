@@ -130,4 +130,3 @@ describe('GetJobStatus Use Case', () => {
         });
     });
 });
-

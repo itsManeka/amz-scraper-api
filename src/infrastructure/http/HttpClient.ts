@@ -77,11 +77,11 @@ export class HttpClient implements IHttpClient {
      * @returns Promise resolving to the response (parsed JSON or string)
      * @throws {HttpError} If request fails
      */
-    async post(
+    async post<TResponse = unknown>(
         url: string,
-        data: Record<string, any> | string,
+        data: Record<string, unknown> | string,
         config?: HttpClientConfig
-    ): Promise<any> {
+    ): Promise<TResponse> {
         try {
             const mergedConfig = { ...this.defaultConfig, ...config };
             const axiosConfig: AxiosRequestConfig = {
@@ -100,7 +100,7 @@ export class HttpClient implements IHttpClient {
             }
 
             // Handle form-encoded data
-            let postData: string | Record<string, any> = data;
+            let postData: string | Record<string, unknown> = data;
             if (typeof data === 'object' && data !== null) {
                 // Check if Content-Type is form-urlencoded
                 const contentType =

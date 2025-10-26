@@ -29,7 +29,10 @@ export class HybridCache implements ICache {
         // Set up cleanup on expired keys to remove from storage
         this.memoryCache.on('expired', (key: string) => {
             this.deleteFromStorage(key).catch((error) => {
-                console.error(`[HybridCache] Failed to delete expired key from storage: ${key}`, error);
+                console.error(
+                    `[HybridCache] Failed to delete expired key from storage: ${key}`,
+                    error
+                );
             });
         });
     }
@@ -177,4 +180,3 @@ export class HybridCache implements ICache {
         }
     }
 }
-

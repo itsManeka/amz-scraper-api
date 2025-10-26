@@ -43,4 +43,3 @@ export interface ICache {
      */
     getStats(): Promise<{ hits: number; misses: number; keys: number }>;
 }
-

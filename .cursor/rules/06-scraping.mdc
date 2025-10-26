@@ -202,12 +202,12 @@ async clickShowMoreButton(page: Page): Promise<void> {
         if (!showMoreButton) {
             // Tente por texto
             const buttonFound = await page.evaluate(() => {
-                // @ts-ignore
+                // @ts-expect-error
                 const buttons = Array.from(document.querySelectorAll('button, a'));
                 for (const button of buttons) {
-                    // @ts-ignore
+                    // @ts-expect-error
                     if (button.textContent?.includes('Mostrar mais')) {
-                        // @ts-ignore
+                        // @ts-expect-error
                         button.click();
                         return true;
                     }

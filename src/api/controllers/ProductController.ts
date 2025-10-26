@@ -29,7 +29,9 @@ export class ProductController {
 
             if (product.hasPromoCode() && product.promoCode?.url) {
                 // Extract promotion ID from URL
-                const promotionIdMatch = product.promoCode.url.match(/\/promotion\/psp\/([A-Z0-9]+)/);
+                const promotionIdMatch = product.promoCode.url.match(
+                    /\/promotion\/psp\/([A-Z0-9]+)/
+                );
 
                 if (promotionIdMatch) {
                     const promotionId = promotionIdMatch[1];
@@ -43,7 +45,9 @@ export class ProductController {
                         status: job.status,
                     };
 
-                    console.log(`[ProductController] Started promotion scraping job ${job.id} for promotion ${promotionId}`);
+                    console.log(
+                        `[ProductController] Started promotion scraping job ${job.id} for promotion ${promotionId}`
+                    );
                 }
             }
 
@@ -57,4 +61,3 @@ export class ProductController {
         }
     }
 }
-

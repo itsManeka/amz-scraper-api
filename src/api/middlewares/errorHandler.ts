@@ -1,5 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { ScraperError, HttpError, ParsingError, ProductNotFoundError } from '../../infrastructure/errors/ScraperError';
+import {
+    ScraperError,
+    HttpError,
+    ParsingError,
+    ProductNotFoundError,
+} from '../../infrastructure/errors/ScraperError';
 
 /**
  * Error response interface
@@ -99,4 +104,3 @@ export function errorHandler(
     };
     res.status(500).json(response);
 }
-

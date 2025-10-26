@@ -11,7 +11,9 @@ describe('HttpClient', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockedAxios.create.mockReturnValue(mockedAxios as any);
+        mockedAxios.create.mockReturnValue(
+            mockedAxios as unknown as ReturnType<typeof axios.create>
+        );
     });
 
     describe('constructor', () => {
@@ -128,7 +130,7 @@ describe('HttpClient', () => {
         it('should use custom headers from method config', async () => {
             const mockHtml = '<html><body>Test</body></html>';
             mockedAxios.get.mockResolvedValue({ data: mockHtml });
-            mockedAxios.defaults = { headers: { common: {} } } as any;
+            mockedAxios.defaults = { headers: { common: {} } } as typeof mockedAxios.defaults;
 
             await httpClient.get('https://example.com', {
                 headers: { 'X-Custom': 'value' },
@@ -147,7 +149,7 @@ describe('HttpClient', () => {
         it('should configure proxy when provided', async () => {
             const mockHtml = '<html><body>Test</body></html>';
             mockedAxios.get.mockResolvedValue({ data: mockHtml });
-            mockedAxios.defaults = { headers: { common: {} } } as any;
+            mockedAxios.defaults = { headers: { common: {} } } as typeof mockedAxios.defaults;
 
             await httpClient.get('https://example.com', {
                 proxy: 'http://proxy.example.com:8080',
@@ -166,7 +168,7 @@ describe('HttpClient', () => {
     describe('post', () => {
         beforeEach(() => {
             httpClient = new HttpClient();
-            mockedAxios.defaults = { headers: { common: {} } } as any;
+            mockedAxios.defaults = { headers: { common: {} } } as typeof mockedAxios.defaults;
         });
 
         it('should successfully post data', async () => {
@@ -244,11 +246,7 @@ describe('HttpClient', () => {
             const mockResponse = { success: true };
             mockedAxios.post.mockResolvedValue({ data: mockResponse });
 
-            await httpClient.post(
-                'https://example.com/api',
-                { key: 'value' },
-                { timeout: 5000 }
-            );
+            await httpClient.post('https://example.com/api', { key: 'value' }, { timeout: 5000 });
 
             expect(mockedAxios.post).toHaveBeenCalledWith(
                 'https://example.com/api',

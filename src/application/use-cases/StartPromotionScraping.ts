@@ -21,18 +21,14 @@ export class StartPromotionScraping {
      */
     async execute(request: ScrapeRequest): Promise<Job<Promotion>> {
         // Create a job that executes the scraping
-        const job = await this.jobManager.createJob<Promotion>(
-            'promotion-scraping',
-            async () => {
-                return await this.promotionRepository.getPromotionById(
-                    request.promotionId,
-                    request.category || undefined,
-                    request.subcategory || undefined
-                );
-            }
-        );
+        const job = await this.jobManager.createJob<Promotion>('promotion-scraping', async () => {
+            return await this.promotionRepository.getPromotionById(
+                request.promotionId,
+                request.category || undefined,
+                request.subcategory || undefined
+            );
+        });
 
         return job;
     }
 }
-

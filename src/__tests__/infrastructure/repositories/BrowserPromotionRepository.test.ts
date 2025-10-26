@@ -74,7 +74,7 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(false); // No "Show More" button
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             const promotion = await repository.getPromotionById('ABC123');
 
@@ -96,7 +96,7 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(false);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             await repository.getPromotionById('ABC123', 'Livros');
 
@@ -117,7 +117,7 @@ describe('BrowserPromotionRepository', () => {
             `;
 
             mockPage.content.mockResolvedValue(mockHtml);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
                 .mockResolvedValueOnce(true) // Subcategory filter found and clicked
                 .mockResolvedValue(false); // No "Show More" button
@@ -141,7 +141,7 @@ describe('BrowserPromotionRepository', () => {
             `;
 
             mockPage.content.mockResolvedValue(mockHtml);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
                 .mockResolvedValueOnce(true) // First click
                 .mockResolvedValueOnce(true) // Second click
@@ -168,7 +168,7 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(false);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             await expect(repository.getPromotionById('INVALID')).rejects.toThrow(
                 PromotionNotFoundError
@@ -208,7 +208,7 @@ describe('BrowserPromotionRepository', () => {
             mockPage.waitForSelector.mockRejectedValue(new Error('Timeout'));
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(false);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             const promotion = await repository.getPromotionById('ABC123');
 
@@ -229,7 +229,7 @@ describe('BrowserPromotionRepository', () => {
             `;
 
             mockPage.content.mockResolvedValue(mockHtml);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
                 .mockResolvedValueOnce(false) // Subcategory filter not found
                 .mockResolvedValue(false); // No "Show More" button
@@ -254,7 +254,7 @@ describe('BrowserPromotionRepository', () => {
             mockPage.waitForSelector.mockRejectedValue(new Error('Selector error'));
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(false);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             await repository.getPromotionById('ABC123', 'Livros', 'Mangá');
 
@@ -275,7 +275,7 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockRejectedValue(new Error('Click error'));
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             const promotion = await repository.getPromotionById('ABC123');
 
@@ -305,7 +305,7 @@ describe('BrowserPromotionRepository', () => {
                 throw new Error('Scroll error');
             });
             mockPage.content.mockResolvedValue(mockHtml);
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             const promotion = await repository.getPromotionById('ABC123');
 
@@ -327,7 +327,7 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.evaluate.mockResolvedValue(true); // Always return true (button found)
-            mockPage.waitForFunction.mockResolvedValue(undefined);
+            mockPage.waitForFunction.mockResolvedValue({} as any);
 
             await repository.getPromotionById('ABC123');
 
@@ -337,4 +337,3 @@ describe('BrowserPromotionRepository', () => {
         }, 10000);
     });
 });
-

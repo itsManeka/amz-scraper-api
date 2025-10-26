@@ -27,11 +27,7 @@ describe('ScrapeRequest Entity', () => {
         });
 
         it('should trim whitespace from fields', () => {
-            const request = new ScrapeRequest(
-                '  ABC123  ',
-                '  Electronics  ',
-                '  Computers  '
-            );
+            const request = new ScrapeRequest('  ABC123  ', '  Electronics  ', '  Computers  ');
 
             expect(request.promotionId).toBe('ABC123');
             expect(request.category).toBe('Electronics');
@@ -216,4 +212,3 @@ describe('ScrapeRequest Entity', () => {
         });
     });
 });
-

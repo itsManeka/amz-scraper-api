@@ -168,4 +168,3 @@ describe('StartPromotionScraping Use Case', () => {
         });
     });
 });
-

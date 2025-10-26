@@ -14,12 +14,9 @@ export function createProductRoutes(controller: ProductController): Router {
      * GET /api/products/:asin
      * Get product information by ASIN
      */
-    router.get(
-        '/:asin',
-        ValidateRequest.asin,
-        (req, res, next) => controller.getProduct(req, res, next)
+    router.get('/:asin', ValidateRequest.asin, (req, res, next) =>
+        controller.getProduct(req, res, next)
     );
 
     return router;
 }
-

@@ -58,10 +58,9 @@ describe('JsonFileStorage', () => {
             await storage.save(key, value);
 
             const expectedPath = path.join(testStoragePath, 'test', 'key.json');
-            expect(mockedFs.mkdir).toHaveBeenCalledWith(
-                path.dirname(expectedPath),
-                { recursive: true }
-            );
+            expect(mockedFs.mkdir).toHaveBeenCalledWith(path.dirname(expectedPath), {
+                recursive: true,
+            });
             expect(mockedFs.writeFile).toHaveBeenCalledWith(
                 expectedPath,
                 JSON.stringify(value, null, 2),
@@ -356,4 +355,3 @@ describe('JsonFileStorage', () => {
         });
     });
 });
-

@@ -45,4 +45,3 @@ export class BrowserConfig {
         return options;
     }
 }
-
