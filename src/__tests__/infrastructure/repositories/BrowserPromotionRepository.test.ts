@@ -131,6 +131,8 @@ describe('BrowserPromotionRepository', () => {
         }, 10000);
 
         it('should click "Show More" button multiple times', async () => {
+            jest.useFakeTimers();
+
             const mockHtml = `
                 <html>
                     <body>
@@ -185,7 +187,14 @@ describe('BrowserPromotionRepository', () => {
                 .mockResolvedValueOnce(undefined) // Scroll (no return value)
                 .mockResolvedValueOnce({ found: false, text: null, method: null }); // No more buttons
 
-            await repository.getPromotionById('ABC123');
+            const promotionPromise = repository.getPromotionById('ABC123');
+
+            // Fast-forward through all timers (500ms scroll + 1000ms after click + 2000ms stability for each cycle)
+            await jest.advanceTimersByTimeAsync(10000); // First cycle
+            await jest.advanceTimersByTimeAsync(10000); // Second cycle
+            await jest.advanceTimersByTimeAsync(10000); // Third check
+
+            await promotionPromise;
 
             expect(console.log).toHaveBeenCalledWith(
                 expect.stringContaining('Clicked "Show More" button (1)')
@@ -199,6 +208,8 @@ describe('BrowserPromotionRepository', () => {
             expect(console.log).toHaveBeenCalledWith(
                 expect.stringContaining('Products loaded: 30 -> 40')
             );
+
+            jest.useRealTimers();
         }, 15000);
 
         it('should throw PromotionNotFoundError when title is empty', async () => {
@@ -375,17 +386,35 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
 
-            // Mock evaluate to return increasing product counts for each call
-            let evaluateCallCount = 0;
+            // Mock evaluate to simulate 20 successful clicks
+            // Pattern per click cycle: count products, scroll, click button, count after
+            const evaluateCalls: any[] = [];
+            for (let i = 0; i < 20; i++) {
+                evaluateCalls.push(
+                    // Count before
+                    {
+                        dataAsin: 10 + i,
+                        productLinks: 20 + i * 2,
+                        productCards: 15 + i,
+                        max: 20 + i * 2,
+                    },
+                    // Scroll
+                    undefined,
+                    // Click button - always found
+                    { found: true, text: 'Mostrar mais', method: 'byId' },
+                    // Count after (same as before to simulate products not loading)
+                    {
+                        dataAsin: 10 + i,
+                        productLinks: 20 + i * 2,
+                        productCards: 15 + i,
+                        max: 20 + i * 2,
+                    }
+                );
+            }
+
             mockPage.evaluate.mockImplementation(() => {
-                evaluateCallCount++;
-                // Every odd call is for counting products (before click)
-                // Every even call is for clicking button
-                if (evaluateCallCount % 2 === 1) {
-                    return Promise.resolve(evaluateCallCount); // Product count
-                } else {
-                    return Promise.resolve(true); // Button found
-                }
+                const result = evaluateCalls.shift();
+                return Promise.resolve(result);
             });
 
             mockPage.waitForFunction.mockResolvedValue({} as any);
@@ -394,7 +423,7 @@ describe('BrowserPromotionRepository', () => {
 
             // Fast-forward through all the delays
             for (let i = 0; i < 20; i++) {
-                await jest.advanceTimersByTimeAsync(7000); // 5s wait + 2s delay
+                await jest.advanceTimersByTimeAsync(10000); // All delays per cycle
             }
 
             await promotionPromise;
