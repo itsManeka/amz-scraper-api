@@ -10,6 +10,7 @@ import { GetProductWithPromoCode } from '../application/use-cases/GetProductWith
 import { StartPromotionScraping } from '../application/use-cases/StartPromotionScraping';
 import { GetJobStatus } from '../application/use-cases/GetJobStatus';
 import { GetCachedPromotion } from '../application/use-cases/GetCachedPromotion';
+import { GetJobsByPromotionId } from '../application/use-cases/GetJobsByPromotionId';
 import { ProductRepository } from '../infrastructure/repositories/ProductRepository';
 import { BrowserPromotionRepository } from '../infrastructure/repositories/BrowserPromotionRepository';
 import { HttpClient } from '../infrastructure/http/HttpClient';
@@ -66,6 +67,7 @@ export async function createApp(config: AppConfig): Promise<Express> {
     );
     const getJobStatusUseCase = new GetJobStatus(jobManager);
     const getCachedPromotionUseCase = new GetCachedPromotion(cache);
+    const getJobsByPromotionIdUseCase = new GetJobsByPromotionId(jobManager);
 
     // Initialize controllers
     const productController = new ProductController(
@@ -75,7 +77,8 @@ export async function createApp(config: AppConfig): Promise<Express> {
     const promotionController = new PromotionController(
         startPromotionScrapingUseCase,
         getJobStatusUseCase,
-        getCachedPromotionUseCase
+        getCachedPromotionUseCase,
+        getJobsByPromotionIdUseCase
     );
     const healthController = new HealthController(jobManager);
 
@@ -94,6 +97,7 @@ export async function createApp(config: AppConfig): Promise<Express> {
                 product: '/api/products/:asin',
                 promotionScrape: '/api/promotions/scrape',
                 promotionJob: '/api/promotions/jobs/:jobId',
+                promotionJobsByPromotion: '/api/promotions/jobs/by-promotion/:promotionId',
                 promotionCached: '/api/promotions/:promotionId',
             },
         });

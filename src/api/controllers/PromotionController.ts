@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { StartPromotionScraping } from '../../application/use-cases/StartPromotionScraping';
 import { GetJobStatus } from '../../application/use-cases/GetJobStatus';
 import { GetCachedPromotion } from '../../application/use-cases/GetCachedPromotion';
+import { GetJobsByPromotionId } from '../../application/use-cases/GetJobsByPromotionId';
 import { ScrapeRequest } from '../../domain/entities/ScrapeRequest';
 import { Promotion } from '../../domain/entities/Promotion';
 
@@ -12,7 +13,8 @@ export class PromotionController {
     constructor(
         private readonly startPromotionScrapingUseCase: StartPromotionScraping,
         private readonly getJobStatusUseCase: GetJobStatus,
-        private readonly getCachedPromotionUseCase: GetCachedPromotion
+        private readonly getCachedPromotionUseCase: GetCachedPromotion,
+        private readonly getJobsByPromotionIdUseCase: GetJobsByPromotionId
     ) {}
 
     /**
@@ -132,6 +134,53 @@ export class PromotionController {
             res.json({
                 promotion,
                 cached: true,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * GET /api/promotions/jobs/by-promotion/:promotionId
+     * Gets all jobs associated with a promotion
+     */
+    async getJobsByPromotionId(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { promotionId } = req.params;
+
+            // Get all jobs for this promotion
+            const result = await this.getJobsByPromotionIdUseCase.execute(promotionId);
+
+            // If no jobs found
+            if (result.jobs.length === 0) {
+                res.status(404).json({
+                    error: {
+                        message: `No jobs found for promotion: ${promotionId}`,
+                        type: 'NotFoundError',
+                        statusCode: 404,
+                    },
+                });
+                return;
+            }
+
+            // Format response
+            res.json({
+                promotionId: result.promotionId,
+                overallStatus: result.overallStatus,
+                summary: result.summary,
+                jobs: result.jobs.map((job) => ({
+                    jobId: job.id,
+                    type: job.type,
+                    status: job.status,
+                    subcategory: job.metadata?.subcategory,
+                    parentJobId: job.metadata?.parentJobId,
+                    childJobIds: job.metadata?.childJobIds,
+                    createdAt: job.createdAt,
+                    startedAt: job.startedAt,
+                    completedAt: job.completedAt,
+                    progress: job.progress,
+                    error: job.error,
+                })),
             });
         } catch (error) {
             next(error);

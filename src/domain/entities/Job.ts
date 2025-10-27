@@ -19,6 +19,8 @@ export interface JobMetadata {
     promotionId?: string;
     category?: string;
     subcategory?: string;
+    parentJobId?: string;
+    childJobIds?: string[];
     [key: string]: unknown;
 }
 

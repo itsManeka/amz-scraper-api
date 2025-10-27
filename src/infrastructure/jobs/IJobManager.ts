@@ -36,6 +36,14 @@ export interface IJobManager {
     ): Promise<Job | null>;
 
     /**
+     * Finds all jobs by promotion ID
+     * Returns all jobs (parent and children) associated with a promotion
+     * @param promotionId - Promotion ID
+     * @returns Array of jobs
+     */
+    findJobsByPromotionId(promotionId: string): Promise<Job[]>;
+
+    /**
      * Lists all jobs
      * @param status - Optional status filter
      * @returns Array of jobs

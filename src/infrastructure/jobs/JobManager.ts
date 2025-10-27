@@ -150,6 +150,16 @@ export class JobManager implements IJobManager {
     }
 
     /**
+     * Finds all jobs by promotion ID
+     * Returns all jobs (parent and children) associated with a promotion
+     */
+    async findJobsByPromotionId(promotionId: string): Promise<Job[]> {
+        return Array.from(this.jobs.values()).filter(
+            (job) => job.metadata?.promotionId === promotionId
+        );
+    }
+
+    /**
      * Lists all jobs
      */
     async listJobs(status?: JobStatus): Promise<Job[]> {

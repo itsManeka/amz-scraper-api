@@ -31,6 +31,14 @@ export function createPromotionRoutes(controller: PromotionController): Router {
     );
 
     /**
+     * GET /api/promotions/jobs/by-promotion/:promotionId
+     * Get all jobs for a promotion
+     */
+    router.get('/jobs/by-promotion/:promotionId', ValidateRequest.promotionId, (req, res, next) =>
+        controller.getJobsByPromotionId(req, res, next)
+    );
+
+    /**
      * GET /api/promotions/:promotionId
      * Get cached promotion data
      */

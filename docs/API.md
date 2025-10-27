@@ -373,6 +373,114 @@ Retrieves the status and results of a promotion scraping job.
 
 ---
 
+#### `GET /api/promotions/jobs/by-promotion/:promotionId`
+
+Retrieves all jobs associated with a promotion ID, including parent and child jobs when multi-job scraping is used. Returns an overall status that aggregates the status of all jobs.
+
+**Parameters:**
+- `promotionId` (path, required): Amazon promotion ID
+
+**Example:**
+```
+GET /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX
+```
+
+**Response (Multi-Job with Mixed Status):**
+```json
+{
+  "promotionId": "A2P3X1AN29HWHX",
+  "overallStatus": "partial",
+  "summary": {
+    "total": 4,
+    "pending": 0,
+    "running": 0,
+    "completed": 3,
+    "failed": 1
+  },
+  "jobs": [
+    {
+      "jobId": "parent-job-id-1",
+      "type": "promotion-scraping-orchestrator",
+      "status": "running",
+      "subcategory": null,
+      "parentJobId": null,
+      "childJobIds": ["child-1", "child-2", "child-3"],
+      "createdAt": "2025-10-27T10:30:00.000Z",
+      "startedAt": "2025-10-27T10:30:01.000Z",
+      "completedAt": null,
+      "progress": null,
+      "error": null
+    },
+    {
+      "jobId": "child-1",
+      "type": "promotion-scraping",
+      "status": "completed",
+      "subcategory": "Literatura e Ficção",
+      "parentJobId": "parent-job-id-1",
+      "childJobIds": null,
+      "createdAt": "2025-10-27T10:30:05.000Z",
+      "startedAt": "2025-10-27T10:30:10.000Z",
+      "completedAt": "2025-10-27T10:35:20.000Z",
+      "progress": null,
+      "error": null
+    },
+    {
+      "jobId": "child-2",
+      "type": "promotion-scraping",
+      "status": "completed",
+      "subcategory": "Romance",
+      "parentJobId": "parent-job-id-1",
+      "childJobIds": null,
+      "createdAt": "2025-10-27T10:30:06.000Z",
+      "startedAt": "2025-10-27T10:35:25.000Z",
+      "completedAt": "2025-10-27T10:40:15.000Z",
+      "progress": null,
+      "error": null
+    },
+    {
+      "jobId": "child-3",
+      "type": "promotion-scraping",
+      "status": "failed",
+      "subcategory": "Suspense e Thriller",
+      "parentJobId": "parent-job-id-1",
+      "childJobIds": null,
+      "createdAt": "2025-10-27T10:30:07.000Z",
+      "startedAt": "2025-10-27T10:40:20.000Z",
+      "completedAt": "2025-10-27T10:42:30.000Z",
+      "progress": null,
+      "error": "Timeout exceeded"
+    }
+  ]
+}
+```
+
+**Overall Status Values:**
+- `pending`: At least one job is pending
+- `running`: At least one job is running (and none pending)
+- `completed`: All jobs completed successfully
+- `partial`: Some jobs succeeded, some failed (partial success)
+- `failed`: All jobs failed or no jobs exist
+
+**Use Cases:**
+- Monitor progress of multi-job scraping when a category was scraped without subcategory
+- Check which subcategories succeeded and which failed
+- Get aggregated status of all jobs for a promotion
+
+**Notes:**
+- When a category is scraped without specifying a subcategory, the system creates:
+  1. A parent orchestrator job (`promotion-scraping-orchestrator`)
+  2. Multiple child jobs, one per discovered subcategory (`promotion-scraping`)
+- Each child job scrapes independently and closes its browser after completion
+- This prevents memory issues from excessive "Show More" clicks in a single session
+- For single-job scraping (with subcategory specified), only one job is returned
+
+**Error Responses:**
+- `400 Bad Request`: Invalid promotion ID
+- `404 Not Found`: No jobs found for this promotion
+- `500 Internal Server Error`: Server error
+
+---
+
 #### `GET /api/promotions/:promotionId`
 
 Retrieves cached promotion data if available. This is a quick check that doesn't trigger scraping.
