@@ -4,6 +4,7 @@ export interface IPromotionRepository {
     getPromotionById(
         promotionId: string,
         productCategory?: string,
-        productSubcategory?: string
+        productSubcategory?: string,
+        maxClicks?: number
     ): Promise<Promotion>;
 }

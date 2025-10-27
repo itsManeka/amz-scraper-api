@@ -8,6 +8,7 @@ describe('ScrapeRequest Entity', () => {
             expect(request.promotionId).toBe('ABC123');
             expect(request.category).toBeNull();
             expect(request.subcategory).toBeNull();
+            expect(request.maxClicks).toBe(10); // default value
         });
 
         it('should create a ScrapeRequest with category', () => {
@@ -16,6 +17,7 @@ describe('ScrapeRequest Entity', () => {
             expect(request.promotionId).toBe('ABC123');
             expect(request.category).toBe('Electronics');
             expect(request.subcategory).toBeNull();
+            expect(request.maxClicks).toBe(10); // default value
         });
 
         it('should create a ScrapeRequest with category and subcategory', () => {
@@ -24,6 +26,25 @@ describe('ScrapeRequest Entity', () => {
             expect(request.promotionId).toBe('ABC123');
             expect(request.category).toBe('Electronics');
             expect(request.subcategory).toBe('Computers');
+            expect(request.maxClicks).toBe(10); // default value
+        });
+
+        it('should create a ScrapeRequest with custom maxClicks', () => {
+            const request = new ScrapeRequest('ABC123', null, null, 25);
+
+            expect(request.promotionId).toBe('ABC123');
+            expect(request.category).toBeNull();
+            expect(request.subcategory).toBeNull();
+            expect(request.maxClicks).toBe(25);
+        });
+
+        it('should create a ScrapeRequest with all parameters', () => {
+            const request = new ScrapeRequest('ABC123', 'Electronics', 'Computers', 15);
+
+            expect(request.promotionId).toBe('ABC123');
+            expect(request.category).toBe('Electronics');
+            expect(request.subcategory).toBe('Computers');
+            expect(request.maxClicks).toBe(15);
         });
 
         it('should trim whitespace from fields', () => {
@@ -43,6 +64,7 @@ describe('ScrapeRequest Entity', () => {
             expect(request.promotionId).toBe('ABC123');
             expect(request.category).toBeNull();
             expect(request.subcategory).toBeNull();
+            expect(request.maxClicks).toBe(10);
         });
     });
 
@@ -128,6 +150,48 @@ describe('ScrapeRequest Entity', () => {
                 new ScrapeRequest('ABC123', null, 'Computers');
             }).toThrow('Subcategory cannot be specified without a category');
         });
+
+        it('should throw error if maxClicks is not an integer', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 10.5);
+            }).toThrow('maxClicks must be an integer');
+        });
+
+        it('should throw error if maxClicks is not a number', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 'ten' as any);
+            }).toThrow('maxClicks must be an integer');
+        });
+
+        it('should throw error if maxClicks is less than 1', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 0);
+            }).toThrow('maxClicks must be between 1 and 50');
+        });
+
+        it('should throw error if maxClicks is greater than 50', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 51);
+            }).toThrow('maxClicks must be between 1 and 50');
+        });
+
+        it('should accept maxClicks at minimum boundary (1)', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 1);
+            }).not.toThrow();
+        });
+
+        it('should accept maxClicks at maximum boundary (50)', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 50);
+            }).not.toThrow();
+        });
+
+        it('should accept maxClicks in valid range', () => {
+            expect(() => {
+                new ScrapeRequest('ABC123', null, null, 25);
+            }).not.toThrow();
+        });
     });
 
     describe('hasFilters', () => {
@@ -154,29 +218,43 @@ describe('ScrapeRequest Entity', () => {
         it('should generate cache key with only promotionId', () => {
             const request = new ScrapeRequest('ABC123');
 
-            expect(request.getCacheKey()).toBe('promotion:ABC123');
+            expect(request.getCacheKey()).toBe('promotion:ABC123:clicks:10');
         });
 
         it('should generate cache key with category', () => {
             const request = new ScrapeRequest('ABC123', 'Electronics');
 
-            expect(request.getCacheKey()).toBe('promotion:ABC123:Electronics');
+            expect(request.getCacheKey()).toBe('promotion:ABC123:Electronics:clicks:10');
         });
 
         it('should generate cache key with category and subcategory', () => {
             const request = new ScrapeRequest('ABC123', 'Electronics', 'Computers');
 
-            expect(request.getCacheKey()).toBe('promotion:ABC123:Electronics:Computers');
+            expect(request.getCacheKey()).toBe('promotion:ABC123:Electronics:Computers:clicks:10');
+        });
+
+        it('should generate cache key with custom maxClicks', () => {
+            const request = new ScrapeRequest('ABC123', null, null, 25);
+
+            expect(request.getCacheKey()).toBe('promotion:ABC123:clicks:25');
+        });
+
+        it('should generate cache key with all parameters', () => {
+            const request = new ScrapeRequest('ABC123', 'Electronics', 'Computers', 15);
+
+            expect(request.getCacheKey()).toBe('promotion:ABC123:Electronics:Computers:clicks:15');
         });
 
         it('should generate unique keys for different requests', () => {
             const request1 = new ScrapeRequest('ABC123');
             const request2 = new ScrapeRequest('ABC123', 'Electronics');
             const request3 = new ScrapeRequest('XYZ789');
+            const request4 = new ScrapeRequest('ABC123', null, null, 20);
 
             expect(request1.getCacheKey()).not.toBe(request2.getCacheKey());
             expect(request1.getCacheKey()).not.toBe(request3.getCacheKey());
             expect(request2.getCacheKey()).not.toBe(request3.getCacheKey());
+            expect(request1.getCacheKey()).not.toBe(request4.getCacheKey());
         });
     });
 
@@ -188,6 +266,7 @@ describe('ScrapeRequest Entity', () => {
                 promotionId: 'ABC123',
                 category: null,
                 subcategory: null,
+                maxClicks: 10,
             });
         });
 
@@ -198,6 +277,7 @@ describe('ScrapeRequest Entity', () => {
                 promotionId: 'ABC123',
                 category: 'Electronics',
                 subcategory: null,
+                maxClicks: 10,
             });
         });
 
@@ -208,6 +288,29 @@ describe('ScrapeRequest Entity', () => {
                 promotionId: 'ABC123',
                 category: 'Electronics',
                 subcategory: 'Computers',
+                maxClicks: 10,
+            });
+        });
+
+        it('should return plain object with custom maxClicks', () => {
+            const request = new ScrapeRequest('ABC123', null, null, 25);
+
+            expect(request.toJSON()).toEqual({
+                promotionId: 'ABC123',
+                category: null,
+                subcategory: null,
+                maxClicks: 25,
+            });
+        });
+
+        it('should return plain object with all parameters', () => {
+            const request = new ScrapeRequest('ABC123', 'Electronics', 'Computers', 15);
+
+            expect(request.toJSON()).toEqual({
+                promotionId: 'ABC123',
+                category: 'Electronics',
+                subcategory: 'Computers',
+                maxClicks: 15,
             });
         });
     });

@@ -95,7 +95,7 @@ export class ValidateRequest {
      * Validates scrape request body
      */
     static scrapeRequest(req: Request, res: Response, next: NextFunction): void {
-        const { promotionId, category, subcategory } = req.body;
+        const { promotionId, category, subcategory, maxClicks } = req.body;
 
         if (!promotionId || typeof promotionId !== 'string' || promotionId.trim().length === 0) {
             res.status(400).json({
@@ -158,6 +158,32 @@ export class ValidateRequest {
             return;
         }
 
+        // Validate maxClicks
+        if (maxClicks !== undefined) {
+            const maxClicksNum = Number(maxClicks);
+            if (!Number.isInteger(maxClicksNum)) {
+                res.status(400).json({
+                    error: {
+                        message: 'maxClicks must be an integer if provided',
+                        type: 'ValidationError',
+                        statusCode: 400,
+                    },
+                });
+                return;
+            }
+
+            if (maxClicksNum < 1 || maxClicksNum > 50) {
+                res.status(400).json({
+                    error: {
+                        message: 'maxClicks must be between 1 and 50',
+                        type: 'ValidationError',
+                        statusCode: 400,
+                    },
+                });
+                return;
+            }
+        }
+
         next();
     }
 
@@ -165,7 +191,7 @@ export class ValidateRequest {
      * Validates batch product request body
      */
     static batchProductRequest(req: Request, res: Response, next: NextFunction): void {
-        const { asins, category, subcategory } = req.body;
+        const { asins, category, subcategory, maxClicks } = req.body;
 
         // Validate asins array
         if (!Array.isArray(asins)) {
@@ -268,6 +294,32 @@ export class ValidateRequest {
                 },
             });
             return;
+        }
+
+        // Validate maxClicks
+        if (maxClicks !== undefined) {
+            const maxClicksNum = Number(maxClicks);
+            if (!Number.isInteger(maxClicksNum)) {
+                res.status(400).json({
+                    error: {
+                        message: 'maxClicks must be an integer if provided',
+                        type: 'ValidationError',
+                        statusCode: 400,
+                    },
+                });
+                return;
+            }
+
+            if (maxClicksNum < 1 || maxClicksNum > 50) {
+                res.status(400).json({
+                    error: {
+                        message: 'maxClicks must be between 1 and 50',
+                        type: 'ValidationError',
+                        statusCode: 400,
+                    },
+                });
+                return;
+            }
         }
 
         next();

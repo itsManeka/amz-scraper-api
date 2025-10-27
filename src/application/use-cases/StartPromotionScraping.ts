@@ -40,6 +40,7 @@ export class StartPromotionScraping {
             promotionId: request.promotionId,
             category: request.category || undefined,
             subcategory: request.subcategory || undefined,
+            maxClicks: request.maxClicks,
         };
 
         // Create a job that executes the scraping
@@ -49,7 +50,8 @@ export class StartPromotionScraping {
                 return await this.promotionRepository.getPromotionById(
                     request.promotionId,
                     request.category || undefined,
-                    request.subcategory || undefined
+                    request.subcategory || undefined,
+                    request.maxClicks
                 );
             },
             metadata

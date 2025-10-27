@@ -152,7 +152,8 @@ describe('StartPromotionScraping Use Case', () => {
                 expect(mockPromotionRepository.getPromotionById).toHaveBeenCalledWith(
                     'ABC123',
                     undefined,
-                    undefined
+                    undefined,
+                    10 // default maxClicks
                 );
                 expect(result).toBe(promotion);
             }
@@ -193,7 +194,8 @@ describe('StartPromotionScraping Use Case', () => {
                 expect(mockPromotionRepository.getPromotionById).toHaveBeenCalledWith(
                     'ABC123',
                     'Electronics',
-                    'Computers'
+                    'Computers',
+                    10 // default maxClicks
                 );
             }
         });

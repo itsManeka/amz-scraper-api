@@ -19,11 +19,12 @@ export class ProductController {
      * @param req.params.asin - Product ASIN
      * @param req.query.category - Optional category filter for promotion scraping
      * @param req.query.subcategory - Optional subcategory filter for promotion scraping
+     * @param req.query.maxClicks - Optional max clicks for "Show More" button (default: 10)
      */
     async getProduct(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const { asin } = req.params;
-            const { category, subcategory } = req.query;
+            const { category, subcategory, maxClicks } = req.query;
 
             // Get product with promo code
             const product = await this.getProductUseCase.execute(asin);
@@ -44,7 +45,8 @@ export class ProductController {
                     const scrapeRequest = new ScrapeRequest(
                         promotionId,
                         category ? String(category) : null,
-                        subcategory ? String(subcategory) : null
+                        subcategory ? String(subcategory) : null,
+                        maxClicks ? Number(maxClicks) : undefined
                     );
                     const job = await this.startPromotionScrapingUseCase.execute(scrapeRequest);
 
@@ -77,10 +79,11 @@ export class ProductController {
      * @param req.body.asins - Array of product ASINs (1-10)
      * @param req.body.category - Optional category filter for promotion scraping
      * @param req.body.subcategory - Optional subcategory filter for promotion scraping
+     * @param req.body.maxClicks - Optional max clicks for "Show More" button (default: 10)
      */
     async getProductsBatch(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { asins, category, subcategory } = req.body;
+            const { asins, category, subcategory, maxClicks } = req.body;
 
             // Validation (should also be done by middleware)
             if (!Array.isArray(asins)) {
@@ -126,7 +129,8 @@ export class ProductController {
                             const scrapeRequest = new ScrapeRequest(
                                 promotionId,
                                 category || null,
-                                subcategory || null
+                                subcategory || null,
+                                maxClicks !== undefined ? Number(maxClicks) : undefined
                             );
                             const job =
                                 await this.startPromotionScrapingUseCase.execute(scrapeRequest);

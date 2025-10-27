@@ -5,23 +5,27 @@ export class ScrapeRequest {
     readonly promotionId: string;
     readonly category: string | null;
     readonly subcategory: string | null;
+    readonly maxClicks: number;
 
     constructor(
         promotionId: string,
         category: string | null = null,
-        subcategory: string | null = null
+        subcategory: string | null = null,
+        maxClicks: number = 10
     ) {
-        this.validateData(promotionId, category, subcategory);
+        this.validateData(promotionId, category, subcategory, maxClicks);
 
         this.promotionId = promotionId.trim();
         this.category = category ? category.trim() : null;
         this.subcategory = subcategory ? subcategory.trim() : null;
+        this.maxClicks = maxClicks;
     }
 
     private validateData(
         promotionId: string,
         category: string | null,
-        subcategory: string | null
+        subcategory: string | null,
+        maxClicks: number
     ): void {
         if (!promotionId || typeof promotionId !== 'string' || promotionId.trim().length === 0) {
             throw new Error('Promotion ID is required and must be a non-empty string');
@@ -47,6 +51,15 @@ export class ScrapeRequest {
         if (subcategory !== null && category === null) {
             throw new Error('Subcategory cannot be specified without a category');
         }
+
+        // Validate maxClicks
+        if (typeof maxClicks !== 'number' || !Number.isInteger(maxClicks)) {
+            throw new Error('maxClicks must be an integer');
+        }
+
+        if (maxClicks < 1 || maxClicks > 50) {
+            throw new Error('maxClicks must be between 1 and 50');
+        }
     }
 
     /**
@@ -67,17 +80,24 @@ export class ScrapeRequest {
         if (this.subcategory) {
             parts.push(this.subcategory);
         }
+        parts.push(`clicks:${this.maxClicks}`);
         return parts.join(':');
     }
 
     /**
      * Returns a plain object representation of the ScrapeRequest
      */
-    toJSON(): { promotionId: string; category: string | null; subcategory: string | null } {
+    toJSON(): {
+        promotionId: string;
+        category: string | null;
+        subcategory: string | null;
+        maxClicks: number;
+    } {
         return {
             promotionId: this.promotionId,
             category: this.category,
             subcategory: this.subcategory,
+            maxClicks: this.maxClicks,
         };
     }
 }

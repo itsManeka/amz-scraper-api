@@ -21,13 +21,14 @@ export class PromotionController {
      */
     async startScraping(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { promotionId, category, subcategory } = req.body;
+            const { promotionId, category, subcategory, maxClicks } = req.body;
 
             // Create scrape request
             const scrapeRequest = new ScrapeRequest(
                 promotionId,
                 category || null,
-                subcategory || null
+                subcategory || null,
+                maxClicks !== undefined ? Number(maxClicks) : undefined
             );
 
             // Start scraping job

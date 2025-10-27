@@ -38,7 +38,8 @@ export class BrowserPromotionRepository implements IPromotionRepository {
     async getPromotionById(
         promotionId: string,
         productCategory?: string,
-        productSubcategory?: string
+        productSubcategory?: string,
+        maxClicks: number = 10
     ): Promise<Promotion> {
         let browser: Browser | null = null;
 
@@ -97,7 +98,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             }
 
             // Click "Show More" button to load all products
-            await this.clickShowMoreButton(page);
+            await this.clickShowMoreButton(page, maxClicks);
 
             // Scroll to load more products if needed (lazy loading)
             await this.scrollToLoadProducts(page);
@@ -217,10 +218,9 @@ export class BrowserPromotionRepository implements IPromotionRepository {
      * Clicks "Show More" button repeatedly to load all products
      * @param page - Puppeteer page instance
      */
-    private async clickShowMoreButton(page: Page): Promise<void> {
+    private async clickShowMoreButton(page: Page, maxClicks: number): Promise<void> {
         try {
             let clickCount = 0;
-            const maxClicks = 20; // Prevent infinite loops
             const waitBetweenClicks = 2000; // 2 seconds between clicks
             const maxWaitForNewProducts = 5000; // Max 5 seconds waiting for new products
 
