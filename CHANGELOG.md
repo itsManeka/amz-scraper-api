@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.1.0...v1.1.1) (2025-10-26)
+
+
+### Bug Fixes
+
+* add retry support, fiz asin validation and error requests validation ([8380c64](https://github.com/itsManeka/amz-scraper-api/commit/8380c64f718fbf6439358f06ab0aec7073f8ca51))
+* wait new products after click "show more" button ([0dbb209](https://github.com/itsManeka/amz-scraper-api/commit/0dbb20985297b30b299955aa6f209f4ffe231792))
+
 ## [1.1.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.0.3...v1.1.0) (2025-10-26)
 
 
