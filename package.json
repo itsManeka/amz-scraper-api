@@ -1,6 +1,6 @@
 {
 	"name": "amz-scraper-api",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Amazon Brazil scraper API for extracting product information and coupons",
 	"main": "dist/api/server.js",
 	"scripts": {
