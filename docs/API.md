@@ -28,7 +28,51 @@ Production: `https://your-app.onrender.com`
 
 ## Authentication
 
-Currently, the API does not require authentication. This may change in future versions.
+The API requires authentication via API Key for all endpoints except health check and root.
+
+### API Key Header
+
+All protected endpoints require the `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/products/B08N5WRWNW
+```
+
+### Protected Endpoints
+
+- ✅ `/api/products/*` - Requires authentication
+- ✅ `/api/promotions/*` - Requires authentication
+- ❌ `/api/health` - Public (for monitoring)
+- ❌ `/` - Public (API info)
+
+### Error Responses
+
+**Missing API Key:**
+```json
+{
+  "error": {
+    "message": "API key is required. Please provide X-API-Key header",
+    "type": "AuthenticationError",
+    "statusCode": 401
+  }
+}
+```
+
+**Invalid API Key:**
+```json
+{
+  "error": {
+    "message": "Invalid API key",
+    "type": "AuthenticationError",
+    "statusCode": 401
+  }
+}
+```
+
+### Configuration
+
+API keys are configured via the `API_KEYS` environment variable. See the [README](../README.md) for setup instructions.
 
 ## Endpoints
 
@@ -381,6 +425,7 @@ All error responses follow this format:
 
 - `ValidationError`: Invalid request parameters
 - `ProductNotFoundError`: Product not found on Amazon
+- `AuthenticationError`: Missing or invalid API key
 - `HttpError`: HTTP request failed
 - `ParsingError`: Failed to parse HTML
 - `NotFoundError`: Resource not found
@@ -431,15 +476,18 @@ The API automatically prevents duplicate promotion scraping jobs:
 **Example:**
 ```bash
 # First call - creates new job
-GET /api/products/B08N5WRWNW?category=Livros
+curl -H "X-API-Key: your-api-key-here" \
+  "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
 # Returns: { "promotionJob": { "jobId": "abc-123", "status": "pending" } }
 
 # Second call with same category - returns existing job
-GET /api/products/B08N5WRWNX?category=Livros
+curl -H "X-API-Key: your-api-key-here" \
+  "http://localhost:3000/api/products/B08N5WRWNX?category=Livros"
 # Returns: { "promotionJob": { "jobId": "abc-123", "status": "running" } }
 
 # Third call with different category - creates new job
-GET /api/products/B08N5WRWNX?category=Eletrônicos
+curl -H "X-API-Key: your-api-key-here" \
+  "http://localhost:3000/api/products/B08N5WRWNX?category=Eletrônicos"
 # Returns: { "promotionJob": { "jobId": "def-456", "status": "pending" } }
 ```
 
@@ -450,19 +498,22 @@ This prevents unnecessary duplicate scraping and saves resources when processing
 ### Example 1: Verify Product and Get Promo Code
 
 ```bash
-curl http://localhost:3000/api/products/B08N5WRWNW
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/products/B08N5WRWNW
 ```
 
 ### Example 2: Verify Product with Category Filter
 
 ```bash
-curl "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
+curl -H "X-API-Key: your-api-key-here" \
+  "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
 ```
 
 ### Example 3: Batch Product Check
 
 ```bash
 curl -X POST http://localhost:3000/api/products/batch \
+  -H "X-API-Key: your-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{
     "asins": ["B08N5WRWNW", "B08N5WRWNX", "B08N5WRWNY"],
@@ -474,6 +525,7 @@ curl -X POST http://localhost:3000/api/products/batch \
 
 ```bash
 curl -X POST http://localhost:3000/api/promotions/scrape \
+  -H "X-API-Key: your-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{
     "promotionId": "A2P3X1AN29HWHX",
@@ -485,13 +537,15 @@ curl -X POST http://localhost:3000/api/promotions/scrape \
 ### Example 5: Check Job Status
 
 ```bash
-curl http://localhost:3000/api/promotions/jobs/550e8400-e29b-41d4-a716-446655440000
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/promotions/jobs/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Example 6: Get Cached Promotion
 
 ```bash
-curl "http://localhost:3000/api/promotions/A2P3X1AN29HWHX?category=Livros"
+curl -H "X-API-Key: your-api-key-here" \
+  "http://localhost:3000/api/promotions/A2P3X1AN29HWHX?category=Livros"
 ```
 
 ### Example 7: Health Check
@@ -507,13 +561,15 @@ curl http://localhost:3000/api/health
 ### Single Product Workflow
 
 1. **Check product for promo code:**
-   ```
-   GET /api/products/B08N5WRWNW?category=Livros
+   ```bash
+   curl -H "X-API-Key: your-api-key-here" \
+     "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
    ```
 
 2. **If promo code found, a job is automatically created. Check job status:**
-   ```
-   GET /api/promotions/jobs/{jobId}
+   ```bash
+   curl -H "X-API-Key: your-api-key-here" \
+     http://localhost:3000/api/promotions/jobs/{jobId}
    ```
 
 3. **Poll job status until completed (or use webhooks in future version)**
@@ -521,20 +577,23 @@ curl http://localhost:3000/api/health
 4. **Retrieve full promotion data from completed job result**
 
 5. **Subsequent requests can use cached data:**
-   ```
-   GET /api/promotions/A2P3X1AN29HWHX?category=Livros
+   ```bash
+   curl -H "X-API-Key: your-api-key-here" \
+     "http://localhost:3000/api/promotions/A2P3X1AN29HWHX?category=Livros"
    ```
 
 ### Batch Product Workflow (Recommended for Hourly Checks)
 
 1. **Check multiple products at once (e.g., every hour):**
    ```bash
-   POST /api/products/batch
-   {
-     "asins": ["ASIN1", "ASIN2", "ASIN3", "ASIN4", "ASIN5", 
-               "ASIN6", "ASIN7", "ASIN8", "ASIN9", "ASIN10"],
-     "category": "Livros"
-   }
+   curl -X POST http://localhost:3000/api/products/batch \
+     -H "X-API-Key: your-api-key-here" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "asins": ["ASIN1", "ASIN2", "ASIN3", "ASIN4", "ASIN5", 
+                 "ASIN6", "ASIN7", "ASIN8", "ASIN9", "ASIN10"],
+       "category": "Livros"
+     }'
    ```
 
 2. **Response includes all products and any triggered promotion jobs**
@@ -542,8 +601,9 @@ curl http://localhost:3000/api/health
 3. **For products with promo codes, jobs are automatically created (or existing jobs returned if already running)**
 
 4. **Check individual job statuses as needed:**
-   ```
-   GET /api/promotions/jobs/{jobId}
+   ```bash
+   curl -H "X-API-Key: your-api-key-here" \
+     http://localhost:3000/api/promotions/jobs/{jobId}
    ```
 
 5. **Benefits:**

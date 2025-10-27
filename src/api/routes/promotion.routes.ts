@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PromotionController } from '../controllers/PromotionController';
 import { ValidateRequest } from '../middlewares/validateRequest';
+import { authMiddleware } from '../middlewares/authMiddleware';
 
 /**
  * Creates promotion routes
@@ -9,6 +10,9 @@ import { ValidateRequest } from '../middlewares/validateRequest';
  */
 export function createPromotionRoutes(controller: PromotionController): Router {
     const router = Router();
+
+    // Apply authentication middleware to all routes
+    router.use(authMiddleware);
 
     /**
      * POST /api/promotions/scrape

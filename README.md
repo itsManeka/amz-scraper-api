@@ -1,17 +1,20 @@
 # Amazon Scraper API
 
+> This API is currently under development
+
 > REST API for extracting product information and promotional codes from Amazon Brazil (amazon.com.br)
 
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.8.1-brightgreen)](https://nodejs.org)
 [![Build Status](https://github.com/itsManeka/amz-scraper-api/workflows/Build%2C%20Test%20%26%20Publish/badge.svg)](https://github.com/itsManeka/amz-scraper-api/actions)
 [![codecov](https://codecov.io/gh/itsManeka/amz-scraper-api/graph/badge.svg?token=MAYE29G36S)](https://codecov.io/gh/itsManeka/amz-scraper-api)
-[![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper)](https://github.com/itsManeka/amz-scraper-api/releases)
+[![GitHub release](https://img.shields.io/github/v/release/itsManeka/amz-scraper-api)](https://github.com/itsManeka/amz-scraper-api/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
 - ✅ **Product Verification**: Extract promotional codes from product pages using Cheerio + Axios
 - ✅ **Promotion Scraping**: Full promotion page scraping with Puppeteer (headless browser)
+- ✅ **API Key Authentication**: Secure your API with configurable API keys
 - ✅ **Category/Subcategory Filtering**: Apply Amazon's native filters to narrow results
 - ✅ **Auto "Show More" Clicking**: Automatically loads all products by clicking pagination buttons
 - ✅ **User-Agent Rotation**: Avoid detection with rotating user agents and headers
@@ -105,7 +108,8 @@ See [API Documentation](docs/API.md) for detailed endpoint specifications.
 ### 1. Verify Product and Get Promo Code
 
 ```bash
-curl http://localhost:3000/api/products/B08N5WRWNW
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/products/B08N5WRWNW
 ```
 
 **Response:**
@@ -129,6 +133,7 @@ curl http://localhost:3000/api/products/B08N5WRWNW
 
 ```bash
 curl -X POST http://localhost:3000/api/promotions/scrape \
+  -H "X-API-Key: your-api-key-here" \
   -H "Content-Type: application/json" \
   -d '{
     "promotionId": "A2P3X1AN29HWHX",
@@ -149,7 +154,8 @@ curl -X POST http://localhost:3000/api/promotions/scrape \
 ### 3. Check Job Status
 
 ```bash
-curl http://localhost:3000/api/promotions/jobs/550e8400-e29b-41d4-a716-446655440000
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/promotions/jobs/550e8400-e29b-41d4-a716-446655440000
 ```
 
 **Response (Completed):**
@@ -180,6 +186,11 @@ Configure the API using environment variables:
 PORT=3000
 NODE_ENV=production
 
+# Authentication (REQUIRED for production)
+# Comma-separated list of API keys
+# Generate secure keys: openssl rand -base64 32
+API_KEYS=your-secure-api-key-here,another-optional-key
+
 # Storage
 STORAGE_PATH=./data
 
@@ -189,6 +200,35 @@ CACHE_TTL_MINUTES=30
 # Jobs
 JOB_TIMEOUT_MINUTES=10
 MAX_CONCURRENT_JOBS=2
+```
+
+### Authentication
+
+All endpoints except `/api/health` and `/` require authentication via the `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:3000/api/products/B08N5WRWNW
+```
+
+**Generating Secure API Keys:**
+
+```bash
+# Linux/Mac
+openssl rand -base64 32
+
+# Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Or use any password generator with minimum 32 characters
+```
+
+**Multiple API Keys:**
+
+You can configure multiple API keys (e.g., for different clients or environments):
+
+```bash
+API_KEYS=key_for_client_1,key_for_client_2,key_for_backup
 ```
 
 ## Deployment to Render.com
@@ -201,7 +241,22 @@ MAX_CONCURRENT_JOBS=2
    - Build Command: `npm install && npm run build`
    - Start Command: `npm start`
 
-4. **Add environment variables** from `.env.example`
+4. **Add environment variables:**
+   ```
+   PORT=3000
+   NODE_ENV=production
+   API_KEYS=your-secure-api-key-here
+   STORAGE_PATH=./data
+   CACHE_TTL_MINUTES=30
+   JOB_TIMEOUT_MINUTES=10
+   MAX_CONCURRENT_JOBS=2
+   ```
+   
+   **Important**: Generate a secure API key:
+   ```bash
+   openssl rand -base64 32
+   ```
+   Or use Render's "Generate" button when adding the `API_KEYS` environment variable.
 
 5. **Add persistent disk:**
    - Mount Path: `/opt/render/project/data`
@@ -209,7 +264,20 @@ MAX_CONCURRENT_JOBS=2
 
 6. **Deploy!** The service will automatically deploy on push to main branch
 
-Alternatively, use the included `render.yaml` for automatic configuration.
+Alternatively, use the included `render.yaml` for automatic configuration (don't forget to add `API_KEYS` in Render dashboard).
+
+### Testing Your Deployment
+
+Once deployed, test your API with:
+
+```bash
+# Health check (no authentication required)
+curl https://your-app.onrender.com/api/health
+
+# Product endpoint (requires authentication)
+curl -H "X-API-Key: your-api-key" \
+  https://your-app.onrender.com/api/products/B08N5WRWNW
+```
 
 ## Project Structure
 

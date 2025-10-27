@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ProductController } from '../controllers/ProductController';
 import { ValidateRequest } from '../middlewares/validateRequest';
+import { authMiddleware } from '../middlewares/authMiddleware';
 
 /**
  * Creates product routes
@@ -9,6 +10,9 @@ import { ValidateRequest } from '../middlewares/validateRequest';
  */
 export function createProductRoutes(controller: ProductController): Router {
     const router = Router();
+
+    // Apply authentication middleware to all routes
+    router.use(authMiddleware);
 
     /**
      * POST /api/products/batch
