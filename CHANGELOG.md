@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.2](https://github.com/itsManeka/amz-scraper-api/compare/v1.1.1...v1.1.2) (2025-10-27)
+
+
+### Bug Fixes
+
+* fix browser tests to use fake timers and rewrite show more button logic ([b0f00ba](https://github.com/itsManeka/amz-scraper-api/commit/b0f00ba89806f17aca7d379ab255341bed434917))
+* show more button handlers ([c2e12f0](https://github.com/itsManeka/amz-scraper-api/commit/c2e12f092c5bf642976ea0aa5920ca6e6024c2f3))
+
 ## [1.1.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.1.0...v1.1.1) (2025-10-26)
 
 
