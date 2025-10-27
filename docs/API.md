@@ -110,10 +110,11 @@ Retrieves product information and extracts promotional code if available. If a p
 - `asin` (path, required): Amazon Standard Identification Number (10 alphanumeric characters)
 - `category` (query, optional): Category filter for promotion scraping (e.g., "Livros", "Eletrônicos")
 - `subcategory` (query, optional): Subcategory filter for promotion scraping (requires category)
+- `maxClicks` (query, optional): Maximum number of "Show More" button clicks (1-50, default: 10)
 
 **Example:**
 ```
-GET /api/products/B08N5WRWNW?category=Livros
+GET /api/products/B08N5WRWNW?category=Livros&maxClicks=15
 ```
 
 **Response:**
@@ -161,7 +162,8 @@ Retrieves multiple products (up to 10) and extracts promotional codes. If promo 
 {
   "asins": ["B08N5WRWNW", "B08N5WRWNX", "B08N5WRWNY"],
   "category": "Livros",
-  "subcategory": "Mangá HQs, Mangás e Graphic Novels"
+  "subcategory": "Mangá HQs, Mangás e Graphic Novels",
+  "maxClicks": 15
 }
 ```
 
@@ -169,6 +171,7 @@ Retrieves multiple products (up to 10) and extracts promotional codes. If promo 
 - `asins` (required): Array of product ASINs (1-10 items)
 - `category` (optional): Category filter for promotion scraping
 - `subcategory` (optional): Subcategory filter for promotion scraping (requires category)
+- `maxClicks` (optional): Maximum number of "Show More" button clicks (1-50, default: 10)
 
 **Response:**
 ```json
@@ -271,7 +274,8 @@ Initiates an asynchronous promotion scraping job. The job uses Puppeteer to navi
 {
   "promotionId": "A2P3X1AN29HWHX",
   "category": "Livros",
-  "subcategory": "Mangá HQs, Mangás e Graphic Novels"
+  "subcategory": "Mangá HQs, Mangás e Graphic Novels",
+  "maxClicks": 15
 }
 ```
 
@@ -279,6 +283,7 @@ Initiates an asynchronous promotion scraping job. The job uses Puppeteer to navi
 - `promotionId` (required): Amazon promotion ID (alphanumeric)
 - `category` (optional): Product category filter
 - `subcategory` (optional): Product subcategory filter (requires category)
+- `maxClicks` (optional): Maximum number of "Show More" button clicks (1-50, default: 10)
 
 **Response:**
 ```json
@@ -506,7 +511,7 @@ curl -H "X-API-Key: your-api-key-here" \
 
 ```bash
 curl -H "X-API-Key: your-api-key-here" \
-  "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
+  "http://localhost:3000/api/products/B08N5WRWNW?category=Livros&maxClicks=20"
 ```
 
 ### Example 3: Batch Product Check
@@ -517,7 +522,8 @@ curl -X POST http://localhost:3000/api/products/batch \
   -H "Content-Type: application/json" \
   -d '{
     "asins": ["B08N5WRWNW", "B08N5WRWNX", "B08N5WRWNY"],
-    "category": "Livros"
+    "category": "Livros",
+    "maxClicks": 5
   }'
 ```
 
@@ -530,7 +536,8 @@ curl -X POST http://localhost:3000/api/promotions/scrape \
   -d '{
     "promotionId": "A2P3X1AN29HWHX",
     "category": "Livros",
-    "subcategory": "Mangá HQs, Mangás e Graphic Novels"
+    "subcategory": "Mangá HQs, Mangás e Graphic Novels",
+    "maxClicks": 25
   }'
 ```
 
@@ -563,7 +570,7 @@ curl http://localhost:3000/api/health
 1. **Check product for promo code:**
    ```bash
    curl -H "X-API-Key: your-api-key-here" \
-     "http://localhost:3000/api/products/B08N5WRWNW?category=Livros"
+     "http://localhost:3000/api/products/B08N5WRWNW?category=Livros&maxClicks=15"
    ```
 
 2. **If promo code found, a job is automatically created. Check job status:**
@@ -617,7 +624,7 @@ curl http://localhost:3000/api/health
 ## Notes
 
 - **Browser Fingerprinting**: The API uses user-agent rotation and randomized headers to avoid detection
-- **Show More Button**: Automatically clicks "Show More" buttons (up to 20 times) to load all products
+- **Show More Button**: Automatically clicks "Show More" buttons (up to 10 times by default, configurable with `maxClicks` parameter up to 50) to load all products
 - **Category Filtering**: Apply Amazon's native filters to narrow down results
 - **Caching**: Promotion data is cached for 30 minutes to reduce scraping frequency
 - **Storage**: Job data is persisted to disk and survives server restarts
