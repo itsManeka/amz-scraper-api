@@ -227,18 +227,60 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             console.log('[BrowserPromotionRepository] Looking for "Show More" button');
 
             while (clickCount < maxClicks) {
-                // Count products before clicking
+                // Count products before clicking using multiple selectors
                 const productCountBefore = await page.evaluate(() => {
-                    // Count all product items (divs with data-asin attribute)
+                    // Try multiple selectors to find products
                     // @ts-expect-error - DOM access in browser context
-                    return document.querySelectorAll('[data-asin]:not([data-asin=""])').length;
+                    const dataAsinCount = document.querySelectorAll(
+                        '[data-asin]:not([data-asin=""])'
+                    ).length;
+                    // @ts-expect-error - DOM access in browser context
+                    const productLinksCount = document.querySelectorAll('a[href*="/dp/"]').length;
+                    // @ts-expect-error - DOM access in browser context
+                    const productCardsCount = document.querySelectorAll(
+                        '[class*="product"], [class*="item"]'
+                    ).length;
+
+                    return {
+                        dataAsin: dataAsinCount,
+                        productLinks: productLinksCount,
+                        productCards: productCardsCount,
+                        max: Math.max(dataAsinCount, productLinksCount, productCardsCount),
+                    };
                 });
 
-                // Try to find "Show More" button by text content using page.evaluate
-                // Puppeteer doesn't support :has-text() selector (that's Playwright syntax)
-                const buttonFound = await page.evaluate(() => {
+                console.log(
+                    `[BrowserPromotionRepository] Product count before click ${clickCount + 1}: data-asin=${productCountBefore.dataAsin}, links=${productCountBefore.productLinks}, cards=${productCountBefore.productCards}`
+                );
+
+                // Scroll to bottom to ensure button is visible and trigger lazy loading
+                await page.evaluate(() => {
                     // @ts-expect-error - DOM access in browser context
-                    const buttons = Array.from(document.querySelectorAll('button, a'));
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+                await new Promise((resolve) => setTimeout(resolve, 500));
+
+                // Try to find and click "Show More" button
+                // Amazon uses a specific ID for the pagination button
+                const clickResult = await page.evaluate(() => {
+                    // First, try the specific Amazon Show More button by ID
+                    // @ts-expect-error - DOM access in browser context
+                    const showMoreById = document.querySelector(
+                        '#showMore, #showMoreBtnContainer span'
+                    );
+                    if (showMoreById) {
+                        const buttonText = showMoreById.textContent?.trim();
+                        showMoreById.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        showMoreById.click();
+                        return { found: true, text: buttonText, method: 'byId' };
+                    }
+
+                    // Fallback: search for buttons with "show more" text
+                    // But exclude filter expanders by checking parent context
+                    const buttons = Array.from(
+                        // @ts-expect-error - DOM access in browser context
+                        document.querySelectorAll('button, a, span[role="button"], span.a-button')
+                    );
                     for (const button of buttons) {
                         // @ts-expect-error - DOM element in browser context
                         const text = button.textContent?.toLowerCase() || '';
@@ -252,15 +294,28 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                             ariaLabel.includes('more') ||
                             ariaLabel.includes('mais')
                         ) {
+                            // Skip if it's inside a filter section (expander)
+                            // @ts-expect-error - DOM element in browser context
+                            const isFilterExpander = button.closest(
+                                '[id*="filter"], [class*="filter"], [class*="expander-header"]'
+                            );
+                            if (isFilterExpander) {
+                                continue; // Skip filter expanders
+                            }
+
+                            // @ts-expect-error - DOM element in browser context
+                            const buttonText = button.textContent?.trim();
+                            // @ts-expect-error - DOM element in browser context
+                            button.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             // @ts-expect-error - DOM element in browser context
                             (button as HTMLElement).click();
-                            return true;
+                            return { found: true, text: buttonText, method: 'bySearch' };
                         }
                     }
-                    return false;
+                    return { found: false, text: null, method: null };
                 });
 
-                if (!buttonFound) {
+                if (!clickResult.found) {
                     console.log(
                         `[BrowserPromotionRepository] No more "Show More" button found after ${clickCount} clicks`
                     );
@@ -269,18 +324,34 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 clickCount++;
                 console.log(
-                    `[BrowserPromotionRepository] Clicked "Show More" button (${clickCount})`
+                    `[BrowserPromotionRepository] Clicked "Show More" button (${clickCount}): "${clickResult.text}" via ${clickResult.method}`
                 );
+
+                // Wait a bit for the click to register and content to start loading
+                await new Promise((resolve) => setTimeout(resolve, 1000));
 
                 // Wait for new products to load by checking if product count increased
                 try {
                     await page.waitForFunction(
-                        (prevCount) => {
+                        (prevCounts) => {
                             // @ts-expect-error - DOM access in browser context
-                            const currentCount = document.querySelectorAll(
+                            const dataAsinCount = document.querySelectorAll(
                                 '[data-asin]:not([data-asin=""])'
                             ).length;
-                            return currentCount > prevCount;
+                            const productLinksCount =
+                                // @ts-expect-error - DOM access in browser context
+                                document.querySelectorAll('a[href*="/dp/"]').length;
+                            // @ts-expect-error - DOM access in browser context
+                            const productCardsCount = document.querySelectorAll(
+                                '[class*="product"], [class*="item"]'
+                            ).length;
+
+                            const currentMax = Math.max(
+                                dataAsinCount,
+                                productLinksCount,
+                                productCardsCount
+                            );
+                            return currentMax > prevCounts.max;
                         },
                         { timeout: maxWaitForNewProducts },
                         productCountBefore
@@ -288,15 +359,44 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                     const productCountAfter = await page.evaluate(() => {
                         // @ts-expect-error - DOM access in browser context
-                        return document.querySelectorAll('[data-asin]:not([data-asin=""])').length;
+                        const dataAsinCount = document.querySelectorAll(
+                            '[data-asin]:not([data-asin=""])'
+                        ).length;
+
+                        const productLinksCount =
+                            // @ts-expect-error - DOM access in browser context
+                            document.querySelectorAll('a[href*="/dp/"]').length;
+                        // @ts-expect-error - DOM access in browser context
+                        const productCardsCount = document.querySelectorAll(
+                            '[class*="product"], [class*="item"]'
+                        ).length;
+
+                        return {
+                            dataAsin: dataAsinCount,
+                            productLinks: productLinksCount,
+                            productCards: productCardsCount,
+                            max: Math.max(dataAsinCount, productLinksCount, productCardsCount),
+                        };
                     });
 
                     console.log(
-                        `[BrowserPromotionRepository] Products loaded: ${productCountBefore} -> ${productCountAfter}`
+                        `[BrowserPromotionRepository] Products loaded: ${productCountBefore.max} -> ${productCountAfter.max} (data-asin: ${productCountBefore.dataAsin}->${productCountAfter.dataAsin}, links: ${productCountBefore.productLinks}->${productCountAfter.productLinks})`
                     );
                 } catch (waitError) {
+                    const productCountAfter = await page.evaluate(() => {
+                        // @ts-expect-error - DOM access in browser context
+                        const dataAsinCount = document.querySelectorAll(
+                            '[data-asin]:not([data-asin=""])'
+                        ).length;
+                        const productLinksCount =
+                            // @ts-expect-error - DOM access in browser context
+                            document.querySelectorAll('a[href*="/dp/"]').length;
+
+                        return { dataAsin: dataAsinCount, productLinks: productLinksCount };
+                    });
+
                     console.warn(
-                        `[BrowserPromotionRepository] No new products loaded after click ${clickCount}, continuing...`
+                        `[BrowserPromotionRepository] No new products loaded after click ${clickCount} (before: ${productCountBefore.max}, after check: data-asin=${productCountAfter.dataAsin}, links=${productCountAfter.productLinks}), continuing...`
                     );
                 }
 

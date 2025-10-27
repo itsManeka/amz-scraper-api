@@ -142,15 +142,48 @@ describe('BrowserPromotionRepository', () => {
 
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.waitForFunction.mockResolvedValue({} as any);
+
+            // Mock evaluate calls - now returns objects instead of numbers
             mockPage.evaluate
-                .mockResolvedValueOnce(10) // Product count before first click
-                .mockResolvedValueOnce(true) // First click button found
-                .mockResolvedValueOnce(15) // Product count after first click
-                .mockResolvedValueOnce(15) // Product count before second click
-                .mockResolvedValueOnce(true) // Second click button found
-                .mockResolvedValueOnce(20) // Product count after second click
-                .mockResolvedValueOnce(20) // Product count before third check
-                .mockResolvedValueOnce(false); // No more buttons
+                // First click cycle
+                .mockResolvedValueOnce({
+                    dataAsin: 10,
+                    productLinks: 20,
+                    productCards: 15,
+                    max: 20,
+                }) // Count before first click
+                .mockResolvedValueOnce(undefined) // Scroll (no return value)
+                .mockResolvedValueOnce({ found: true, text: 'Mostrar mais', method: 'byId' }) // First click
+                .mockResolvedValueOnce({
+                    dataAsin: 15,
+                    productLinks: 30,
+                    productCards: 25,
+                    max: 30,
+                }) // Count after first click
+                // Second click cycle
+                .mockResolvedValueOnce({
+                    dataAsin: 15,
+                    productLinks: 30,
+                    productCards: 25,
+                    max: 30,
+                }) // Count before second click
+                .mockResolvedValueOnce(undefined) // Scroll (no return value)
+                .mockResolvedValueOnce({ found: true, text: 'Mostrar mais', method: 'byId' }) // Second click
+                .mockResolvedValueOnce({
+                    dataAsin: 20,
+                    productLinks: 40,
+                    productCards: 35,
+                    max: 40,
+                }) // Count after second click
+                // Third check - no more button
+                .mockResolvedValueOnce({
+                    dataAsin: 20,
+                    productLinks: 40,
+                    productCards: 35,
+                    max: 40,
+                }) // Count before third check
+                .mockResolvedValueOnce(undefined) // Scroll (no return value)
+                .mockResolvedValueOnce({ found: false, text: null, method: null }); // No more buttons
 
             await repository.getPromotionById('ABC123');
 
@@ -161,10 +194,10 @@ describe('BrowserPromotionRepository', () => {
                 expect.stringContaining('Clicked "Show More" button (2)')
             );
             expect(console.log).toHaveBeenCalledWith(
-                expect.stringContaining('Products loaded: 10 -> 15')
+                expect.stringContaining('Products loaded: 20 -> 30')
             );
             expect(console.log).toHaveBeenCalledWith(
-                expect.stringContaining('Products loaded: 15 -> 20')
+                expect.stringContaining('Products loaded: 30 -> 40')
             );
         }, 15000);
 
