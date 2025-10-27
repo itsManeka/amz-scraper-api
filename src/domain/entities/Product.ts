@@ -24,11 +24,14 @@ export class Product {
         if (!asin || asin.trim().length === 0) {
             throw new Error('Product ASIN cannot be empty');
         }
-        if (!this.isValidAsin(asin.trim())) {
-            throw new Error('Product ASIN must be 10 alphanumeric characters');
+        const trimmed = asin.trim();
+        if (!this.isValidAsin(trimmed)) {
+            throw new Error(
+                `Product ASIN must be 10 alphanumeric characters (received "${asin}" with length ${trimmed.length})`
+            );
         }
 
-        this.asin = asin.trim();
+        this.asin = trimmed;
         this.promoCode = promoCode;
     }
 
