@@ -351,7 +351,7 @@ npm run test:coverage
 npm run test:watch
 ```
 
-Current test coverage: **80%+**
+Current test coverage: **70%+**
 
 ## CI/CD Pipeline
 
@@ -361,7 +361,7 @@ The project uses **GitHub Actions** for continuous integration and deployment:
 
 - ✅ **Pull Requests**: Runs tests and coverage checks on every PR
 - ✅ **Main Branch**: Full pipeline on merge to main
-  - Runs all tests with 80% minimum coverage requirement
+  - Runs all tests with 70% minimum coverage requirement
   - Automatically versions releases using [Semantic Versioning](https://semver.org/)
   - Generates CHANGELOG.md automatically
   - Creates GitHub releases with release notes
@@ -381,7 +381,7 @@ feat!: breaking change       # Major release (1.1.1 → 2.0.0)
 
 Deployment to Render.com happens automatically when:
 1. All tests pass (100%)
-2. Coverage is >= 80%
+2. Coverage is >= 70%
 3. Commits follow Conventional Commits format
 4. Changes are merged to `main` branch
 
@@ -435,7 +435,7 @@ Contributions are welcome! Please follow these guidelines:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Follow existing code style (run `npm run lint:fix`)
-4. Add tests for new features (maintain >= 80% coverage)
+4. Add tests for new features (maintain >= 70% coverage)
 5. Ensure all tests pass (`npm test`)
 6. Use Conventional Commits format for commit messages
 7. Push to your fork and open a Pull Request

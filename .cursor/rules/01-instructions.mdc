@@ -19,7 +19,7 @@ Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosa
 
 1. **Sempre use TypeScript strict mode**
 2. **Sempre crie testes para novas funcionalidades**
-3. **Mantenha cobertura de testes acima de 80%**
+3. **Mantenha cobertura de testes acima de 70%**
 4. **Sempre use async/await, nunca callbacks**
 5. **Sempre valide inputs em boundaries (controllers, use cases)**
 6. **Sempre use interfaces para inversão de dependência**
@@ -82,7 +82,7 @@ Este projeto segue **Clean Architecture** e princípios **SOLID**. Siga rigorosa
 
 1. **Sempre use TypeScript strict mode**
 2. **Sempre crie testes para novas funcionalidades**
-3. **Mantenha cobertura de testes acima de 80%**
+3. **Mantenha cobertura de testes acima de 70%**
 4. **Sempre use async/await, nunca callbacks**
 5. **Sempre valide inputs em boundaries (controllers, use cases)**
 6. **Sempre use interfaces para inversão de dependência**

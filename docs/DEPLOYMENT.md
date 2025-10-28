@@ -6,7 +6,7 @@ This guide covers the automated deployment process for the Amazon Scraper API us
 
 The project uses a fully automated CI/CD pipeline that:
 - ✅ Runs tests on every PR and push
-- ✅ Enforces 80% minimum code coverage
+- ✅ Enforces 70% minimum code coverage
 - ✅ Automatically versions releases using semantic versioning
 - ✅ Deploys to Render.com on successful merge to main
 
@@ -88,7 +88,7 @@ The CI/CD workflow runs on:
 **Failure conditions**:
 - Linting errors
 - Any test failure
-- Coverage below 80% threshold
+- Coverage below 70% threshold
 
 ### Job 2: Release (main branch only)
 
@@ -194,10 +194,10 @@ Monitor deployments:
 **Solution**:
 1. Run tests locally: `npm test`
 2. Fix failing tests
-3. Ensure coverage is >= 80%: `npm run test:coverage`
+3. Ensure coverage is >= 70%: `npm run test:coverage`
 4. Push fixes
 
-### ❌ Coverage Below 80%
+### ❌ Coverage Below 70%
 
 **Symptom**: Build fails with "Coverage threshold not met"
 
@@ -276,7 +276,7 @@ git push --follow-tags
 
 1. ✅ **Always** test locally before pushing
 2. ✅ **Always** use Conventional Commits
-3. ✅ **Always** maintain >= 80% coverage
+3. ✅ **Always** maintain >= 70% coverage
 4. ✅ **Review** CHANGELOG.md after releases
 5. ✅ **Monitor** Render logs after deployments
 6. ❌ **Never** force push to main

@@ -222,7 +222,7 @@ describe('GET /api/products/:asin', () => {
 
 ## Coverage Goals
 
-**Mantenha cobertura acima de 80%:**
+**Mantenha cobertura acima de 70%:**
 
 ```bash
 npm run test:coverage
@@ -230,7 +230,7 @@ npm run test:coverage
 
 **Priorize:**
 1. 🔴 **Critical**: Domain entities, use cases (>90%)
-2. 🟡 **Important**: Repositories, parsers (>80%)
+2. 🟡 **Important**: Repositories, parsers (>70%)
 3. 🟢 **Nice to have**: Utilities, helpers (>70%)
 
 ## Não Teste

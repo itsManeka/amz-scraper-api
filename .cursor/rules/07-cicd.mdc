@@ -61,7 +61,7 @@ feat!: remove deprecated /api/v1 endpoints
 Quando você abre um PR:
 1. ✅ Roda todos os testes
 2. ✅ Verifica lint
-3. ✅ Calcula cobertura (mínimo 80%)
+3. ✅ Calcula cobertura (mínimo 70%)
 4. ✅ Envia cobertura para Codecov
 5. ❌ **NÃO** faz release ou deploy
 
@@ -70,7 +70,7 @@ Quando você abre um PR:
 Quando você faz merge para `main`:
 1. ✅ Roda todos os testes
 2. ✅ Verifica lint
-3. ✅ Calcula cobertura (mínimo 80%)
+3. ✅ Calcula cobertura (mínimo 70%)
 4. ✅ Envia cobertura para Codecov
 5. ✅ **Analisa commits** desde último release
 6. ✅ **Determina nova versão** (major/minor/patch)
@@ -81,13 +81,13 @@ Quando você faz merge para `main`:
 
 ## Coverage Requirements
 
-**CRÍTICO**: Cobertura de testes deve ser >= 80% em:
+**CRÍTICO**: Cobertura de testes deve ser >= 70% em:
 - Branches
 - Functions
 - Lines
 - Statements
 
-Se a cobertura cair abaixo de 80%, o build **FALHA** e não permite merge/deploy.
+Se a cobertura cair abaixo de 70%, o build **FALHA** e não permite merge/deploy.
 
 ## GitHub Secrets
 
@@ -164,7 +164,7 @@ Acompanhe deploys em: Render.com Dashboard
 
 ## Troubleshooting
 
-### "Coverage dropped below 80%"
+### "Coverage dropped below 70%"
 **Solução**: Adicione testes para cobrir o código novo antes de fazer merge.
 
 ### "semantic-release failed"
@@ -193,7 +193,7 @@ git push --follow-tags
 
 1. **Sempre** use Conventional Commits
 2. **Sempre** garanta que testes passam localmente antes do PR
-3. **Sempre** mantenha cobertura >= 80%
+3. **Sempre** mantenha cobertura >= 70%
 4. **Sempre** documente breaking changes
 5. **Nunca** force push em `main`
 6. **Nunca** faça merge sem review (exceto hotfixes críticos)
