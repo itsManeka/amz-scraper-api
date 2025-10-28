@@ -523,7 +523,9 @@ describe('JobManager', () => {
             mockStorage.save.mockRejectedValue(new Error('Storage error'));
 
             const executor = jest.fn().mockResolvedValue('result');
-            await jobManager.createJob('test', executor);
+
+            // Now persistence errors are thrown instead of just logged
+            await expect(jobManager.createJob('test', executor)).rejects.toThrow('Storage error');
 
             expect(consoleErrorSpy).toHaveBeenCalledWith(
                 expect.stringContaining('Failed to persist job'),

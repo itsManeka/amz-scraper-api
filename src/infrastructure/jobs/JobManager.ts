@@ -3,6 +3,7 @@ import { Job, JobStatus, JobMetadata } from '../../domain/entities/Job';
 import { IJobManager } from './IJobManager';
 import { IStorage } from '../storage/IStorage';
 import { StorageKeys } from '../storage/StorageKeys';
+import { IKeepAliveService } from '../keepalive/IKeepAliveService';
 
 /**
  * In-memory job manager with optional persistent storage
@@ -13,10 +14,17 @@ export class JobManager implements IJobManager {
     private readonly storage: IStorage | null;
     private readonly maxConcurrentJobs: number;
     private runningJobs = 0;
+    private promotionJobCounts: Map<string, number> = new Map(); // Track running jobs per promotion
+    private readonly keepAliveService: IKeepAliveService | null;
 
-    constructor(storage: IStorage | null = null, maxConcurrentJobs: number = 2) {
+    constructor(
+        storage: IStorage | null = null,
+        maxConcurrentJobs: number = 2,
+        keepAliveService: IKeepAliveService | null = null
+    ) {
         this.storage = storage;
         this.maxConcurrentJobs = maxConcurrentJobs;
+        this.keepAliveService = keepAliveService;
     }
 
     /**
@@ -237,24 +245,45 @@ export class JobManager implements IJobManager {
     }
 
     /**
-     * Executes a job
+     * Executes a job with fair scheduling across promotions
      * @param jobId - Job ID
      * @param executor - Function to execute
      */
     private async executeJob<T>(jobId: string, executor: () => Promise<T>): Promise<void> {
-        // Wait if too many jobs are running
-        while (this.runningJobs >= this.maxConcurrentJobs) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-
         let job = this.jobs.get(jobId) as Job<T>;
         if (!job || job.isCompleted()) {
             return;
         }
 
+        const promotionId = job.metadata?.promotionId;
+
+        // Wait if too many jobs are running OR if another promotion is monopolizing
+        while (this.runningJobs >= this.maxConcurrentJobs) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Fair scheduling: if this promotion has been waiting and another is running,
+            // check if we should prioritize this one
+            if (promotionId && this.shouldPrioritizePromotion(promotionId)) {
+                // Allow this job to cut in line if its promotion has been waiting
+                break;
+            }
+        }
+
         try {
+            // Activate keep-alive when first job starts
+            if (this.runningJobs === 0 && this.keepAliveService) {
+                await this.keepAliveService.activate();
+            }
+
             // Mark as running
             this.runningJobs++;
+            if (promotionId) {
+                this.promotionJobCounts.set(
+                    promotionId,
+                    (this.promotionJobCounts.get(promotionId) || 0) + 1
+                );
+            }
+
             job = job.withStatus('running');
             this.jobs.set(jobId, job);
             await this.persistJob(job);
@@ -274,7 +303,142 @@ export class JobManager implements IJobManager {
             await this.persistJob(job);
         } finally {
             this.runningJobs--;
+            if (promotionId) {
+                const count = this.promotionJobCounts.get(promotionId) || 1;
+                if (count <= 1) {
+                    this.promotionJobCounts.delete(promotionId);
+                } else {
+                    this.promotionJobCounts.set(promotionId, count - 1);
+                }
+            }
+
+            // Pause keep-alive when last job completes
+            if (this.runningJobs === 0 && this.keepAliveService) {
+                await this.keepAliveService.pause();
+            }
         }
+    }
+
+    /**
+     * Determines if a promotion should be prioritized (simple round-robin)
+     */
+    private shouldPrioritizePromotion(promotionId: string): boolean {
+        // If no jobs from this promotion are running but others are, consider prioritizing
+        const thisPromotionRunning = this.promotionJobCounts.get(promotionId) || 0;
+        const otherPromotionsRunning = Array.from(this.promotionJobCounts.entries())
+            .filter(([id]) => id !== promotionId)
+            .reduce((sum, [, count]) => sum + count, 0);
+
+        // Simple fairness: if other promotions have been running but not this one
+        return thisPromotionRunning === 0 && otherPromotionsRunning > 0;
+    }
+
+    /**
+     * Updates job metadata and persists to storage
+     */
+    async updateJobMetadata(jobId: string, metadata: JobMetadata): Promise<boolean> {
+        const job = this.jobs.get(jobId);
+        if (!job) {
+            return false;
+        }
+
+        // Create new job with updated metadata (immutable pattern)
+        const updatedJob = job.withMetadata(metadata);
+        this.jobs.set(jobId, updatedJob);
+
+        // Persist updated job
+        await this.persistJob(updatedJob);
+
+        return true;
+    }
+
+    /**
+     * Creates multiple jobs atomically (all persisted before execution)
+     */
+    async createJobsBatch<T>(
+        jobConfigs: Array<{
+            type: string;
+            executor: () => Promise<T>;
+            metadata?: JobMetadata;
+        }>
+    ): Promise<Job<T>[]> {
+        const jobs: Job<T>[] = [];
+
+        // Phase 1: Create all job instances
+        for (const config of jobConfigs) {
+            const jobId = uuidv4();
+            const job = new Job<T>({
+                id: jobId,
+                type: config.type,
+                status: 'pending',
+                createdAt: new Date(),
+                metadata: config.metadata || null,
+            });
+
+            jobs.push(job);
+            this.jobs.set(jobId, job);
+        }
+
+        // Phase 2: Persist all jobs atomically
+        try {
+            await Promise.all(jobs.map((job) => this.persistJob(job)));
+        } catch (error) {
+            console.error('[JobManager] Failed to persist job batch:', error);
+            // Rollback: remove from memory
+            for (const job of jobs) {
+                this.jobs.delete(job.id);
+            }
+            throw error;
+        }
+
+        // Phase 3: Start execution asynchronously (after all are persisted)
+        for (let i = 0; i < jobs.length; i++) {
+            const job = jobs[i];
+            const executor = jobConfigs[i].executor;
+
+            this.executeJob(job.id, executor).catch((error) => {
+                console.error(`[JobManager] Unexpected error in batch job ${job.id}:`, error);
+            });
+        }
+
+        return jobs;
+    }
+
+    /**
+     * Retries a failed job (only if it was interrupted by server restart)
+     */
+    async retryJob<T>(jobId: string, executor: () => Promise<T>): Promise<boolean> {
+        const job = this.jobs.get(jobId);
+
+        // Only retry if job exists and failed due to server restart
+        if (!job || !job.hasFailed()) {
+            return false;
+        }
+
+        // Check if it was interrupted by server restart
+        if (job.error !== 'Job interrupted by server restart') {
+            return false;
+        }
+
+        // Reset job to pending status (clear result as it will be recomputed)
+        const retriedJob = new Job<T>({
+            ...job.toJSON(),
+            status: 'pending',
+            error: null,
+            result: null,
+        });
+
+        this.jobs.set(jobId, retriedJob);
+        await this.persistJob(retriedJob);
+
+        // Start execution
+        this.executeJob(jobId, executor).catch((error) => {
+            console.error(`[JobManager] Unexpected error retrying job ${jobId}:`, error);
+        });
+
+        console.log(`[JobManager] Retrying job ${jobId} after server restart`);
+
+        return true;
     }
 
     /**
@@ -290,6 +454,7 @@ export class JobManager implements IJobManager {
             await this.storage.save(StorageKeys.jobKey(job.id), job.toJSON());
         } catch (error) {
             console.error(`[JobManager] Failed to persist job ${job.id}:`, error);
+            throw error; // Re-throw to allow caller to handle
         }
     }
 }

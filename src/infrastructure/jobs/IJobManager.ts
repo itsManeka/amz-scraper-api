@@ -73,4 +73,33 @@ export interface IJobManager {
         failed: number;
         total: number;
     }>;
+
+    /**
+     * Updates job metadata and persists to storage
+     * @param jobId - Job ID
+     * @param metadata - Updated metadata
+     * @returns true if successful, false if job not found
+     */
+    updateJobMetadata(jobId: string, metadata: JobMetadata): Promise<boolean>;
+
+    /**
+     * Creates multiple jobs atomically (all persisted before execution)
+     * @param jobs - Array of job configurations
+     * @returns Array of created jobs
+     */
+    createJobsBatch<T>(
+        jobs: Array<{
+            type: string;
+            executor: () => Promise<T>;
+            metadata?: JobMetadata;
+        }>
+    ): Promise<Job<T>[]>;
+
+    /**
+     * Retries a failed job (only if it was interrupted by server restart)
+     * @param jobId - Job ID
+     * @param executor - Function that executes the job
+     * @returns true if job was requeued, false otherwise
+     */
+    retryJob<T>(jobId: string, executor: () => Promise<T>): Promise<boolean>;
 }

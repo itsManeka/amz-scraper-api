@@ -168,6 +168,16 @@ export class Job<T = unknown> {
     }
 
     /**
+     * Creates a new job with updated metadata
+     */
+    withMetadata(metadata: JobMetadata): Job<T> {
+        return new Job({
+            ...this.toJSON(),
+            metadata,
+        });
+    }
+
+    /**
      * Returns a plain object representation of the Job
      */
     toJSON(): {

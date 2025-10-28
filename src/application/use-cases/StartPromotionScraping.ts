@@ -12,12 +12,15 @@ import { BrowserPromotionRepository } from '../../infrastructure/repositories/Br
  * If category is provided without subcategory:
  * - Creates a parent orchestrator job
  * - Discovers available subcategories
- * - Creates child jobs for each subcategory
+ * - Creates child jobs for each subcategory (with throttling)
  *
  * If subcategory is provided or no category:
  * - Creates a single scraping job (original behavior)
  */
 export class StartPromotionScraping {
+    private readonly MAX_CHILD_JOBS = 50; // Reduced from 20 to prevent memory issues
+    private readonly BATCH_PERSISTENCE_SIZE = 5; // Reduced from 10 for better memory management
+
     constructor(
         private readonly promotionRepository: IPromotionRepository,
         private readonly jobManager: IJobManager
@@ -127,7 +130,7 @@ export class StartPromotionScraping {
     }
 
     /**
-     * Spawns child jobs for each subcategory
+     * Spawns child jobs for each subcategory (with throttling)
      */
     private async spawnChildJobs(parentJobId: string, request: ScrapeRequest): Promise<void> {
         try {
@@ -152,48 +155,81 @@ export class StartPromotionScraping {
                 subcategories = ['']; // Empty string means no subcategory filter
             }
 
+            // Limit the number of subcategories to prevent server overload
+            if (subcategories.length > this.MAX_CHILD_JOBS) {
+                console.warn(
+                    `[StartPromotionScraping] Found ${subcategories.length} subcategories, limiting to ${this.MAX_CHILD_JOBS} to prevent overload`
+                );
+                subcategories = subcategories.slice(0, this.MAX_CHILD_JOBS);
+            }
+
             console.log(
                 `[StartPromotionScraping] Creating ${subcategories.length} child jobs for parent ${parentJobId}`
             );
 
-            // Create child jobs for each subcategory
-            const childJobIds: string[] = [];
-
-            for (const subcategory of subcategories) {
-                const childMetadata = {
+            // Prepare all child job configurations
+            const childJobConfigs = subcategories.map((subcategory) => ({
+                type: 'promotion-scraping',
+                executor: async () => {
+                    return await this.promotionRepository.getPromotionById(
+                        request.promotionId,
+                        request.category || undefined,
+                        subcategory || undefined,
+                        request.maxClicks
+                    );
+                },
+                metadata: {
                     promotionId: request.promotionId,
                     category: request.category || undefined,
                     subcategory: subcategory || undefined,
                     maxClicks: request.maxClicks,
                     parentJobId,
-                };
+                },
+            }));
 
-                const childJob = await this.jobManager.createJob<Promotion>(
-                    'promotion-scraping',
-                    async () => {
-                        return await this.promotionRepository.getPromotionById(
-                            request.promotionId,
-                            request.category || undefined,
-                            subcategory || undefined,
-                            request.maxClicks
-                        );
-                    },
-                    childMetadata
-                );
+            // Create child jobs in batches to avoid overwhelming the system
+            const allChildJobs: Job<Promotion>[] = [];
 
-                childJobIds.push(childJob.id);
+            for (let i = 0; i < childJobConfigs.length; i += this.BATCH_PERSISTENCE_SIZE) {
+                const batch = childJobConfigs.slice(i, i + this.BATCH_PERSISTENCE_SIZE);
                 console.log(
-                    `[StartPromotionScraping] Created child job ${childJob.id} for subcategory: ${subcategory || 'none'}`
+                    `[StartPromotionScraping] Persisting batch ${Math.floor(i / this.BATCH_PERSISTENCE_SIZE) + 1} of ${Math.ceil(childJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} (${batch.length} jobs)`
                 );
+
+                const batchJobs = await this.jobManager.createJobsBatch<Promotion>(batch);
+                allChildJobs.push(...batchJobs);
+
+                // Small delay between batches to prevent I/O saturation
+                if (i + this.BATCH_PERSISTENCE_SIZE < childJobConfigs.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
             }
 
-            // Update parent job metadata with child job IDs
-            const parentJob = await this.jobManager.getJob(parentJobId);
-            if (parentJob && parentJob.metadata) {
-                parentJob.metadata.childJobIds = childJobIds;
-            }
+            const childJobIds = allChildJobs.map((job) => job.id);
+
+            console.log(
+                `[StartPromotionScraping] Successfully created ${childJobIds.length} child jobs in ${Math.ceil(childJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} batches`
+            );
+
+            // Update parent job metadata with child job IDs and persist
+            await this.jobManager.updateJobMetadata(parentJobId, {
+                promotionId: request.promotionId,
+                category: request.category || undefined,
+                subcategory: undefined,
+                maxClicks: request.maxClicks,
+                childJobIds,
+            });
+
+            console.log(
+                `[StartPromotionScraping] Updated parent job ${parentJobId} with ${childJobIds.length} child job IDs`
+            );
         } catch (error) {
             console.error('[StartPromotionScraping] Failed to spawn child jobs:', error);
+            // Update parent job with error
+            const parentJob = await this.jobManager.getJob(parentJobId);
+            if (parentJob) {
+                throw error; // Let the parent job executor catch and handle the error
+            }
         }
     }
 

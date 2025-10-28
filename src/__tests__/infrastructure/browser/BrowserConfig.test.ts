@@ -28,6 +28,33 @@ describe('BrowserConfig', () => {
                     '--no-first-run',
                     '--no-zygote',
                     '--disable-gpu',
+                    // Memory optimization flags
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-breakpad',
+                    '--disable-client-side-phishing-detection',
+                    '--disable-component-update',
+                    '--disable-default-apps',
+                    '--disable-features=TranslateUI',
+                    '--disable-hang-monitor',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-popup-blocking',
+                    '--disable-prompt-on-repost',
+                    '--disable-renderer-backgrounding',
+                    '--disable-sync',
+                    '--metrics-recording-only',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--safebrowsing-disable-auto-update',
+                    '--password-store=basic',
+                    '--use-mock-keychain',
+                    // Aggressive memory reduction
+                    '--single-process',
+                    '--disable-features=site-per-process',
+                    '--js-flags=--max-old-space-size=256',
                 ],
             });
             expect(options.executablePath).toBeUndefined();
@@ -49,6 +76,33 @@ describe('BrowserConfig', () => {
                     '--no-first-run',
                     '--no-zygote',
                     '--disable-gpu',
+                    // Memory optimization flags
+                    '--disable-software-rasterizer',
+                    '--disable-extensions',
+                    '--disable-background-networking',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-breakpad',
+                    '--disable-client-side-phishing-detection',
+                    '--disable-component-update',
+                    '--disable-default-apps',
+                    '--disable-features=TranslateUI',
+                    '--disable-hang-monitor',
+                    '--disable-ipc-flooding-protection',
+                    '--disable-popup-blocking',
+                    '--disable-prompt-on-repost',
+                    '--disable-renderer-backgrounding',
+                    '--disable-sync',
+                    '--metrics-recording-only',
+                    '--mute-audio',
+                    '--no-default-browser-check',
+                    '--safebrowsing-disable-auto-update',
+                    '--password-store=basic',
+                    '--use-mock-keychain',
+                    // Aggressive memory reduction
+                    '--single-process',
+                    '--disable-features=site-per-process',
+                    '--js-flags=--max-old-space-size=256',
                 ],
                 executablePath: testPath,
             });
@@ -63,6 +117,7 @@ describe('BrowserConfig', () => {
         it('should include necessary Chrome args', () => {
             const options = BrowserConfig.getLaunchOptions();
 
+            // Basic required flags
             expect(options.args).toContain('--no-sandbox');
             expect(options.args).toContain('--disable-setuid-sandbox');
             expect(options.args).toContain('--disable-dev-shm-usage');
@@ -70,6 +125,11 @@ describe('BrowserConfig', () => {
             expect(options.args).toContain('--no-first-run');
             expect(options.args).toContain('--no-zygote');
             expect(options.args).toContain('--disable-gpu');
+
+            // Memory optimization flags
+            expect(options.args).toContain('--single-process');
+            expect(options.args).toContain('--disable-extensions');
+            expect(options.args).toContain('--js-flags=--max-old-space-size=256');
         });
     });
 });

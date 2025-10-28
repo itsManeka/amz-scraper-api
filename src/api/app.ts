@@ -18,6 +18,7 @@ import { AmazonHtmlParser } from '../infrastructure/parsers/AmazonHtmlParser';
 import { JsonFileStorage } from '../infrastructure/storage/JsonFileStorage';
 import { HybridCache } from '../infrastructure/cache/HybridCache';
 import { JobManager } from '../infrastructure/jobs/JobManager';
+import { UptimeRobotService } from '../infrastructure/keepalive/UptimeRobotService';
 
 /**
  * Application configuration
@@ -32,9 +33,13 @@ export interface AppConfig {
 /**
  * Creates and configures the Express application
  * @param config - Application configuration
- * @returns Express app instance
+ * @returns Express app instance along with jobManager and cache for graceful shutdown
  */
-export async function createApp(config: AppConfig): Promise<Express> {
+export async function createApp(config: AppConfig): Promise<{
+    app: Express;
+    jobManager: JobManager;
+    cache: HybridCache;
+}> {
     const app = express();
 
     // Middleware
@@ -48,7 +53,10 @@ export async function createApp(config: AppConfig): Promise<Express> {
     const cache = new HybridCache(config.cacheTtlMinutes * 60, storage);
     await cache.loadFromStorage();
 
-    const jobManager = new JobManager(storage, config.maxConcurrentJobs);
+    // Initialize keep-alive service for free hosting tiers
+    const keepAliveService = new UptimeRobotService();
+
+    const jobManager = new JobManager(storage, config.maxConcurrentJobs, keepAliveService);
     await jobManager.loadFromStorage();
 
     // Initialize repositories
@@ -117,17 +125,24 @@ export async function createApp(config: AppConfig): Promise<Express> {
     // Error handler (must be last)
     app.use(errorHandler);
 
-    // Schedule cleanup of old jobs
+    // Schedule cleanup of old jobs (more aggressive in production)
+    const cleanupIntervalMinutes = process.env.NODE_ENV === 'production' ? 10 : 60;
     setInterval(
         async () => {
             try {
                 await jobManager.clearCompletedJobs(config.jobTimeoutMinutes);
+
+                // Force garbage collection if available (V8 flag --expose-gc)
+                if (global.gc) {
+                    global.gc();
+                    console.log('[App] Garbage collection triggered');
+                }
             } catch (error) {
                 console.error('[App] Error clearing completed jobs:', error);
             }
         },
-        60 * 60 * 1000
-    ); // Every hour
+        cleanupIntervalMinutes * 60 * 1000
+    );
 
-    return app;
+    return { app, jobManager, cache };
 }

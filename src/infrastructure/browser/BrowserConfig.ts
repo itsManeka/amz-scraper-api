@@ -12,7 +12,7 @@ export interface BrowserOptions {
  */
 export class BrowserConfig {
     /**
-     * Gets optimized Puppeteer launch options for Render.com
+     * Gets optimized Puppeteer launch options for Render.com and low-memory environments
      */
     static getLaunchOptions(): {
         headless: boolean | 'new';
@@ -29,6 +29,35 @@ export class BrowserConfig {
                 '--no-first-run',
                 '--no-zygote',
                 '--disable-gpu',
+
+                // Memory optimization flags
+                '--disable-software-rasterizer',
+                '--disable-extensions',
+                '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-breakpad',
+                '--disable-client-side-phishing-detection',
+                '--disable-component-update',
+                '--disable-default-apps',
+                '--disable-features=TranslateUI',
+                '--disable-hang-monitor',
+                '--disable-ipc-flooding-protection',
+                '--disable-popup-blocking',
+                '--disable-prompt-on-repost',
+                '--disable-renderer-backgrounding',
+                '--disable-sync',
+                '--metrics-recording-only',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--safebrowsing-disable-auto-update',
+                '--password-store=basic',
+                '--use-mock-keychain',
+
+                // Aggressive memory reduction
+                '--single-process', // Run everything in one process (saves ~100-150 MB)
+                '--disable-features=site-per-process', // Disable site isolation
+                '--js-flags=--max-old-space-size=256', // Limit V8 heap to 256 MB
             ],
         };
 

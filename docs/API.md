@@ -481,6 +481,124 @@ GET /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX
 
 ---
 
+### Multi-Job Pattern and Limitations
+
+#### Overview
+
+When scraping a promotion **with a category but without specifying a subcategory**, the API automatically uses a **multi-job pattern** to handle the large number of products more efficiently:
+
+1. **Parent Job**: An orchestrator job (`promotion-scraping-orchestrator`) is created
+2. **Subcategory Discovery**: The system automatically discovers available subcategories for the specified category
+3. **Child Jobs**: One child job (`promotion-scraping`) is created for each subcategory
+4. **Independent Execution**: Each child job runs independently with its own browser instance
+5. **Aggregation**: The parent job waits for all children and aggregates results
+
+#### Throttling and Limits
+
+To prevent server overload and crashes, the following limits are enforced:
+
+- **Maximum Child Jobs**: 10 subcategories (if more are found, only the first 10 are processed)
+- **Batch Persistence**: Jobs are created and persisted in batches of 5
+- **Concurrent Execution**: Only 1 job runs simultaneously by default (configurable via `MAX_CONCURRENT_JOBS`)
+- **Automatic Queueing**: Additional jobs wait in queue until slots become available
+
+**⚠️ Memory Considerations:**
+- Each Puppeteer browser instance uses ~150-300 MB RAM
+- Render Free Tier (512 MB) can handle 1 concurrent job safely
+- Render Starter (1 GB) can handle 1-2 concurrent jobs
+- For higher concurrency, consider upgrading to Render Pro (2+ GB RAM)
+
+#### Persistence and Resilience
+
+The system implements several mechanisms to ensure job reliability:
+
+- **Atomic Batch Creation**: All jobs in a batch are persisted to disk before execution starts
+- **Metadata Persistence**: Parent job metadata (including child job IDs) is persisted immediately
+- **Graceful Shutdown**: Server captures SIGTERM/SIGINT and persists all jobs before shutdown
+- **Auto-Recovery**: Jobs interrupted by server restart are marked as failed with error "Job interrupted by server restart"
+- **Manual Retry**: Failed jobs can be manually retried via the job manager (future feature)
+
+#### Performance Considerations
+
+**Pros:**
+- Prevents browser memory exhaustion from excessive "Show More" clicks
+- Allows parallel processing of subcategories
+- Provides granular progress tracking per subcategory
+- Enables partial results even if some subcategories fail
+
+**Cons:**
+- Creates many jobs (up to 20+) which can stress the system
+- Each job opens a new browser instance (resource intensive)
+- Long-running process (may take 10-30 minutes for all jobs to complete)
+- Server restart before all jobs are persisted may lose jobs
+
+#### Best Practices
+
+1. **Specific Subcategories**: When possible, specify both category AND subcategory to avoid multi-job creation
+2. **Monitor Progress**: Use `GET /api/promotions/jobs/by-promotion/:promotionId` to track overall progress
+3. **Check Individual Jobs**: Use `GET /api/promotions/jobs/:jobId` to check status of specific child jobs
+4. **Wait for Completion**: Allow sufficient time (10-30 minutes) for all jobs to complete
+5. **Handle Partial Results**: Check `overallStatus` field - `partial` means some jobs succeeded
+
+#### Example Workflow
+
+```bash
+# 1. Start scraping with category only (triggers multi-job)
+POST /api/products/batch
+{
+  "asins": ["8545709609"],
+  "category": "Livros"
+}
+
+# Response includes parent job ID
+{
+  "products": [{
+    "promotionJob": {
+      "jobId": "parent-job-id",
+      "status": "pending"
+    }
+  }]
+}
+
+# 2. Monitor all jobs for the promotion
+GET /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX
+
+# Response shows parent + children
+{
+  "promotionId": "A2P3X1AN29HWHX",
+  "overallStatus": "running",
+  "summary": {
+    "total": 21,
+    "pending": 5,
+    "running": 2,
+    "completed": 14,
+    "failed": 0
+  },
+  "jobs": [...]
+}
+
+# 3. Wait and check again until overallStatus is "completed" or "partial"
+```
+
+#### Troubleshooting
+
+**Problem**: Server restarted and jobs were lost  
+**Solution**: Jobs are now automatically persisted before execution. Check `GET /api/promotions/jobs/by-promotion/:promotionId` after restart to see recovered jobs.
+
+**Problem**: Too many child jobs created (50+)  
+**Solution**: System now limits to 20 child jobs maximum. Consider specifying a subcategory to avoid multi-job pattern.
+
+**Problem**: Some child jobs failed  
+**Solution**: Check individual job errors with `GET /api/promotions/jobs/:jobId`. Common causes: timeout, network errors, Amazon blocking. Retry may be needed.
+
+**Problem**: Jobs taking too long (30+ minutes)  
+**Solution**: This is expected for multi-job pattern with many subcategories. Consider:
+- Increasing `MAX_CONCURRENT_JOBS` (default: 2)
+- Reducing `maxClicks` parameter (default: 10)
+- Specifying a specific subcategory instead
+
+---
+
 #### `GET /api/promotions/:promotionId`
 
 Retrieves cached promotion data if available. This is a quick check that doesn't trigger scraping.
@@ -543,6 +661,79 @@ All error responses follow this format:
 - `ParsingError`: Failed to parse HTML
 - `NotFoundError`: Resource not found
 - `ScraperError`: General scraping error
+
+## Keep-Alive Service (Free Tier Optimization)
+
+### Overview
+
+When deployed on free hosting tiers (like Render Free), servers may sleep after 15 minutes of inactivity. To prevent this during long-running jobs, the API integrates with Uptime Robot to maintain server availability.
+
+### How It Works
+
+```
+Job starts → Activate monitor → Server stays awake → Job completes → Pause monitor
+```
+
+**Automatic Behavior:**
+1. When the **first job** starts execution, the Uptime Robot monitor is **activated**
+2. Monitor pings `/api/health` every **5 minutes** (free tier)
+3. Server remains awake during all job execution
+4. When the **last job** completes, the monitor is **paused**
+5. Server can sleep normally when idle
+
+### Configuration
+
+Add these environment variables to enable keep-alive:
+
+```env
+UPTIME_ROBOT_API_KEY=u123456-abcdefg...
+UPTIME_ROBOT_MONITOR_ID=12345678
+```
+
+**Setup Steps:**
+
+1. Create account at https://uptimerobot.com (free, no credit card)
+2. Create monitor:
+   - Type: HTTP(s)
+   - URL: `https://your-app.onrender.com/api/health`
+   - Interval: 5 minutes (free tier)
+   - Status: **Paused** (starts paused)
+3. Get API key: My Settings → API Settings → Create Main API Key
+4. Get Monitor ID: From monitor list
+5. Add env vars to your deployment
+
+### Benefits
+
+- ✅ **Zero cold starts** during job execution
+- ✅ **Automatic** - no manual intervention needed
+- ✅ **Efficient** - only active when jobs are running
+- ✅ **Free** - works with Uptime Robot free tier
+- ✅ **Zero code changes** - fully transparent to API users
+
+### Logs
+
+Monitor activity is logged:
+
+```bash
+[UptimeRobot] ✅ Monitor activated - server will stay awake during job execution
+[JobManager] Job 1 started
+[JobManager] Job 2 started
+...
+[JobManager] All jobs completed
+[UptimeRobot] ⏸️  Monitor paused - server can sleep when idle
+```
+
+### Without Keep-Alive
+
+If environment variables are not configured:
+
+```bash
+[UptimeRobot] API key or Monitor ID not configured. Keep-alive service disabled.
+```
+
+The API will still work normally, but may experience cold starts (~15 seconds) when idle.
+
+---
 
 ## Rate Limiting
 

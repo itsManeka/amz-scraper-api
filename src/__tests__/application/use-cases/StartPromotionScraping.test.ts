@@ -20,6 +20,9 @@ describe('StartPromotionScraping Use Case', () => {
             getJob: jest.fn(),
             getStats: jest.fn(),
             findJobByPromotion: jest.fn(),
+            updateJobMetadata: jest.fn(),
+            createJobsBatch: jest.fn(),
+            retryJob: jest.fn(),
         } as unknown as jest.Mocked<IJobManager>;
 
         useCase = new StartPromotionScraping(mockPromotionRepository, mockJobManager);
@@ -57,15 +60,16 @@ describe('StartPromotionScraping Use Case', () => {
 
         it('should create job with category filter', async () => {
             const request = new ScrapeRequest('ABC123', 'Electronics');
-            const job = new Job<Promotion>({
+            const parentJob = new Job<Promotion>({
                 id: 'job-456',
-                type: 'promotion-scraping',
+                type: 'promotion-scraping-orchestrator',
                 status: 'pending',
                 createdAt: new Date(),
             });
 
             mockJobManager.findJobByPromotion.mockResolvedValue(null);
-            mockJobManager.createJob.mockResolvedValue(job);
+            mockJobManager.createJob.mockResolvedValue(parentJob);
+            mockJobManager.createJobsBatch.mockResolvedValue([]);
 
             const result = await useCase.execute(request);
 
@@ -75,14 +79,15 @@ describe('StartPromotionScraping Use Case', () => {
                 undefined
             );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
-                'promotion-scraping',
+                'promotion-scraping-orchestrator',
                 expect.any(Function),
                 expect.objectContaining({
                     promotionId: 'ABC123',
                     category: 'Electronics',
+                    childJobIds: [],
                 })
             );
-            expect(result).toBe(job);
+            expect(result).toBe(parentJob);
         });
 
         it('should create job with category and subcategory filter', async () => {
@@ -319,13 +324,14 @@ describe('StartPromotionScraping Use Case', () => {
 
             const newJob = new Job<Promotion>({
                 id: 'new-job-with-category',
-                type: 'promotion-scraping',
+                type: 'promotion-scraping-orchestrator',
                 status: 'pending',
                 createdAt: new Date(),
-                metadata: { promotionId: 'ABC123', category: 'Livros' },
+                metadata: { promotionId: 'ABC123', category: 'Livros', childJobIds: [] },
             });
 
             mockJobManager.createJob.mockResolvedValue(newJob);
+            mockJobManager.createJobsBatch.mockResolvedValue([]);
 
             const result = await useCase.execute(request);
 
@@ -335,11 +341,12 @@ describe('StartPromotionScraping Use Case', () => {
                 undefined
             );
             expect(mockJobManager.createJob).toHaveBeenCalledWith(
-                'promotion-scraping',
+                'promotion-scraping-orchestrator',
                 expect.any(Function),
                 expect.objectContaining({
                     promotionId: 'ABC123',
                     category: 'Livros',
+                    childJobIds: [],
                 })
             );
             expect(result).toBe(newJob);
