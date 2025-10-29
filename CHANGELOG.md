@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.3.0...v1.4.0) (2025-10-29)
+
+
+### Features
+
+* keep alive with uptimerobot and improve memory performance of browser ([5f92b86](https://github.com/itsManeka/amz-scraper-api/commit/5f92b8647d822dda3f78889e39121dfda1177cd3))
+* migrate storage to Neon PostgreSQL for data persistence ([d62bcaa](https://github.com/itsManeka/amz-scraper-api/commit/d62bcaa8fc2d6fb9e1506ba0fc175e63b3fdead6))
+
 ## [1.3.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.2.0...v1.3.0) (2025-10-28)
 
 
