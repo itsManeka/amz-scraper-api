@@ -158,7 +158,7 @@ describe('StartPromotionScraping Use Case', () => {
                     'ABC123',
                     undefined,
                     undefined,
-                    10 // default maxClicks
+                    5 // default maxClicks
                 );
                 expect(result).toBe(promotion);
             }
@@ -200,7 +200,7 @@ describe('StartPromotionScraping Use Case', () => {
                     'ABC123',
                     'Electronics',
                     'Computers',
-                    10 // default maxClicks
+                    5 // default maxClicks
                 );
             }
         });

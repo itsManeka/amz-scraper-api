@@ -40,7 +40,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
         promotionId: string,
         productCategory?: string,
         productSubcategory?: string,
-        maxClicks: number = 10
+        maxClicks: number = 5
     ): Promise<Promotion> {
         let browser: Browser | null = null;
 
@@ -398,19 +398,26 @@ export class BrowserPromotionRepository implements IPromotionRepository {
         try {
             console.log(`[BrowserPromotionRepository] Applying subcategory filter: ${subcategory}`);
 
-            // Wait for filters to be available
-            await page.waitForSelector('[data-csa-c-element-id*="filter"]', {
+            // Wait for department section to be available (using correct selector)
+            await page.waitForSelector('#department', {
                 timeout: 5000,
             });
 
-            // Try to find and click the subcategory filter
+            // Try to find and click the subcategory filter using the correct selector
             const filterClicked = await page.evaluate((subcat: string) => {
+                // Look for subcategory elements using the exact selector from the page
                 // @ts-expect-error - DOM access in browser context
-                const filters = Array.from(document.querySelectorAll('a, span, div'));
-                for (const element of filters) {
-                    // @ts-expect-error - DOM element in browser context
-                    if (element.textContent?.trim() === subcat) {
-                        // @ts-expect-error - DOM element in browser context
+                const subcategoryElements = document.querySelectorAll(
+                    '[data-name="departmentListSubCategoryItemText"]'
+                );
+
+                for (const element of subcategoryElements) {
+                    const text = element.textContent?.trim();
+                    const dataValue = element.getAttribute('data-value');
+
+                    // Match by text content or data-value attribute
+                    if (text === subcat || dataValue === subcat) {
+                        // @ts-expect-error - HTMLElement not available in evaluate context
                         (element as HTMLElement).click();
                         return true;
                     }
@@ -422,7 +429,8 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 console.log(
                     '[BrowserPromotionRepository] Subcategory filter clicked, waiting for page update'
                 );
-                await page.waitForFunction(() => true, { timeout: 2000 }).catch(() => {});
+                // Wait for the page to update after clicking the subcategory filter
+                await new Promise((resolve) => setTimeout(resolve, 2000));
             } else {
                 console.warn(
                     `[BrowserPromotionRepository] Subcategory filter not found: ${subcategory}`

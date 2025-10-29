@@ -11,7 +11,7 @@ export class ScrapeRequest {
         promotionId: string,
         category: string | null = null,
         subcategory: string | null = null,
-        maxClicks: number = 10
+        maxClicks: number = 5
     ) {
         this.validateData(promotionId, category, subcategory, maxClicks);
 

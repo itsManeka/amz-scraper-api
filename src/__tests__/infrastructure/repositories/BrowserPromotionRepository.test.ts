@@ -107,10 +107,13 @@ describe('BrowserPromotionRepository', () => {
         }, 10000);
 
         it('should apply subcategory filter when provided', async () => {
+            jest.useFakeTimers();
+
             const mockHtml = `
                 <html>
                     <body>
                         <div id="promotionTitle"><h1><span>Test Promotion</span></h1></div>
+                        <div id="department"></div>
                         <a href="/dp/B08N5WRWNW">Product 1</a>
                     </body>
                 </html>
@@ -120,15 +123,39 @@ describe('BrowserPromotionRepository', () => {
             mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
                 .mockResolvedValueOnce(true) // Subcategory filter found and clicked
-                .mockResolvedValue(false); // No "Show More" button
+                // clickShowMoreButton evaluate calls
+                .mockResolvedValueOnce({
+                    dataAsin: 10,
+                    productLinks: 20,
+                    productCards: 15,
+                    max: 20,
+                }) // Count before first click
+                .mockResolvedValueOnce(undefined) // Scroll
+                .mockResolvedValueOnce({ found: false }) // No "Show More" button
+                // scrollToLoadProducts evaluate calls
+                .mockResolvedValue('window.scrollTo(0, 0)'); // Scroll calls
 
-            await repository.getPromotionById('ABC123', 'Livros', 'Mangá');
+            const promise = repository.getPromotionById('ABC123', 'Livros', 'Mangá');
 
+            // Fast-forward through subcategory filter setTimeout
+            await jest.advanceTimersByTimeAsync(2000);
+            // Fast-forward through clickShowMoreButton setTimeout calls
+            await jest.advanceTimersByTimeAsync(2000);
+            // Fast-forward through scrollToLoadProducts setTimeouts
+            for (let i = 0; i < 6; i++) {
+                await jest.advanceTimersByTimeAsync(1000);
+            }
+
+            const result = await promise;
+
+            expect(result).toBeDefined();
             expect(mockPage.waitForSelector).toHaveBeenCalledWith(
-                '[data-csa-c-element-id*="filter"]',
+                '#department',
                 expect.any(Object)
             );
-        }, 10000);
+
+            jest.useRealTimers();
+        }, 20000);
 
         it('should click "Show More" button multiple times', async () => {
             jest.useFakeTimers();
