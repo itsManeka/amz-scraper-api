@@ -83,9 +83,9 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             console.log(`[BrowserPromotionRepository] Navigating to: ${url}`);
 
-            // Navigate to promotion page
+            // Navigate to promotion page with more resilient options
             await page.goto(url, {
-                waitUntil: 'networkidle2',
+                waitUntil: 'domcontentloaded', // Changed from networkidle2 to be less strict
                 timeout: this.timeout,
             });
 
@@ -178,151 +178,188 @@ export class BrowserPromotionRepository implements IPromotionRepository {
      */
     async extractSubcategories(promotionId: string, productCategory: string): Promise<string[]> {
         let browser: Browser | null = null;
+        let retries = 0;
+        const maxRetries = 2;
 
-        try {
-            // Launch browser with optimized configuration
-            const launchOptions = BrowserConfig.getLaunchOptions();
-            browser = await puppeteer.launch({
-                ...launchOptions,
-                headless: true,
-            });
-
-            const page = await browser.newPage();
-
-            // Get rotated user agent and viewport
-            const userAgent = this.userAgentRotator.getRandom();
-            const viewport = this.headersRotator.getRandomViewport();
-            const headers = this.headersRotator.getHeaders();
-
-            // Set viewport, user agent, and headers
-            await page.setViewport(viewport);
-            await page.setUserAgent(userAgent);
-            await page.setExtraHTTPHeaders(headers);
-
-            // Override navigator properties
-            await page.evaluateOnNewDocument((platform: string) => {
-                // @ts-expect-error - Overriding navigator in browser context
-                Object.defineProperty(navigator, 'platform', {
-                    get: () => platform,
+        while (retries <= maxRetries) {
+            try {
+                // Launch browser with optimized configuration
+                const launchOptions = BrowserConfig.getLaunchOptions();
+                browser = await puppeteer.launch({
+                    ...launchOptions,
+                    headless: true,
                 });
-            }, this.userAgentRotator.getPlatform(userAgent));
 
-            // Build URL with category filter
-            const url = `${this.baseUrl}/promotion/psp/${promotionId}?productCategory=${encodeURIComponent(productCategory)}`;
-            console.log(`[BrowserPromotionRepository] Extracting subcategories from: ${url}`);
+                const page = await browser.newPage();
 
-            // Navigate to promotion page
-            await page.goto(url, {
-                waitUntil: 'networkidle2',
-                timeout: this.timeout,
-            });
+                // Get rotated user agent and viewport
+                const userAgent = this.userAgentRotator.getRandom();
+                const viewport = this.headersRotator.getRandomViewport();
+                const headers = this.headersRotator.getHeaders();
 
-            // Wait for content to load
-            await this.waitForPromotionContent(page);
+                // Set viewport, user agent, and headers
+                await page.setViewport(viewport);
+                await page.setUserAgent(userAgent);
+                await page.setExtraHTTPHeaders(headers);
 
-            // Extract subcategories from sidebar filters
-            // Using specific selectors based on Amazon's promotion page structure
-            const subcategories = await page.evaluate(() => {
-                const subcats = new Set<string>();
+                // Override navigator properties
+                await page.evaluateOnNewDocument((platform: string) => {
+                    // @ts-expect-error - Overriding navigator in browser context
+                    Object.defineProperty(navigator, 'platform', {
+                        get: () => platform,
+                    });
+                }, this.userAgentRotator.getPlatform(userAgent));
 
-                // Strategy 1: Look for subcategories in the department filter sidebar
-                // Subcategories are within #department > [name="subCategoryList"]
-                // @ts-expect-error - DOM access in browser context
-                const subCategoryLists = document.querySelectorAll(
-                    '#department [name="subCategoryList"] [data-name="departmentListSubCategoryItemText"]'
+                // Build URL with category filter
+                const url = `${this.baseUrl}/promotion/psp/${promotionId}?productCategory=${encodeURIComponent(productCategory)}`;
+                console.log(
+                    `[BrowserPromotionRepository] Extracting subcategories from: ${url} (attempt ${retries + 1}/${maxRetries + 1})`
                 );
 
-                for (const element of subCategoryLists) {
-                    const text = element.textContent?.trim();
-                    const dataValue = element.getAttribute('data-value');
+                // Navigate to promotion page with more resilient options
+                await page.goto(url, {
+                    waitUntil: 'domcontentloaded', // Changed from networkidle2
+                    timeout: this.timeout,
+                });
 
-                    // Prefer data-value attribute if available (more reliable)
-                    const subcategoryName = dataValue || text;
+                // Wait for content to load
+                await this.waitForPromotionContent(page);
 
-                    if (
-                        subcategoryName &&
-                        subcategoryName.length > 0 &&
-                        subcategoryName.length < 150
-                    ) {
-                        subcats.add(subcategoryName);
+                // Extract subcategories from sidebar filters
+                // Using specific selectors based on Amazon's promotion page structure
+                const subcategories = await page.evaluate(() => {
+                    const subcats = new Set<string>();
+
+                    // Strategy 1: Look for subcategories in the department filter sidebar
+                    // Subcategories are within #department > [name="subCategoryList"]
+                    // @ts-expect-error - DOM access in browser context
+                    const subCategoryLists = document.querySelectorAll(
+                        '#department [name="subCategoryList"] [data-name="departmentListSubCategoryItemText"]'
+                    );
+
+                    for (const element of subCategoryLists) {
+                        const text = element.textContent?.trim();
+                        const dataValue = element.getAttribute('data-value');
+
+                        // Prefer data-value attribute if available (more reliable)
+                        const subcategoryName = dataValue || text;
+
+                        if (
+                            subcategoryName &&
+                            subcategoryName.length > 0 &&
+                            subcategoryName.length < 150
+                        ) {
+                            subcats.add(subcategoryName);
+                        }
                     }
-                }
 
-                // Strategy 2: Fallback - try to extract from JavaScript data if available
-                // The page may have refinement data with subProductCategories
-                try {
-                    // @ts-expect-error - Accessing potentially available global variables
-                    if (typeof refinement !== 'undefined' && refinement.subProductCategories) {
-                        // @ts-expect-error - refinement object
-                        const subProductCategories = refinement.subProductCategories;
-                        for (const category in subProductCategories) {
-                            if (Array.isArray(subProductCategories[category])) {
-                                subProductCategories[category].forEach((subcat: string) => {
-                                    if (subcat && subcat.length > 0 && subcat.length < 150) {
-                                        subcats.add(subcat);
-                                    }
-                                });
+                    // Strategy 2: Fallback - try to extract from JavaScript data if available
+                    // The page may have refinement data with subProductCategories
+                    try {
+                        // @ts-expect-error - Accessing potentially available global variables
+                        if (typeof refinement !== 'undefined' && refinement.subProductCategories) {
+                            // @ts-expect-error - refinement object
+                            const subProductCategories = refinement.subProductCategories;
+                            for (const category in subProductCategories) {
+                                if (Array.isArray(subProductCategories[category])) {
+                                    subProductCategories[category].forEach((subcat: string) => {
+                                        if (subcat && subcat.length > 0 && subcat.length < 150) {
+                                            subcats.add(subcat);
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore errors from accessing undefined variables
+                    }
+
+                    // Strategy 3: Generic fallback for filter links in department area
+                    if (subcats.size === 0) {
+                        // @ts-expect-error - DOM access in browser context
+                        const departmentLinks = document.querySelectorAll(
+                            '#department a[data-name="departmentListItemText"]'
+                        );
+
+                        for (const link of departmentLinks) {
+                            const text = link.textContent?.trim();
+                            if (text && text.length > 0 && text.length < 150) {
+                                subcats.add(text);
                             }
                         }
                     }
-                } catch (e) {
-                    // Ignore errors from accessing undefined variables
-                }
 
-                // Strategy 3: Generic fallback for filter links in department area
-                if (subcats.size === 0) {
-                    // @ts-expect-error - DOM access in browser context
-                    const departmentLinks = document.querySelectorAll(
-                        '#department a[data-name="departmentListItemText"]'
-                    );
+                    return Array.from(subcats);
+                });
 
-                    for (const link of departmentLinks) {
-                        const text = link.textContent?.trim();
-                        if (text && text.length > 0 && text.length < 150) {
-                            subcats.add(text);
-                        }
-                    }
-                }
-
-                return Array.from(subcats);
-            });
-
-            // Close browser
-            await browser.close();
-            browser = null;
-
-            // Filter out common non-subcategory texts
-            const filtered = subcategories.filter(
-                (subcat) =>
-                    // Exclude navigation/action texts
-                    !subcat.match(
-                        /^(mostrar|ver|filtrar|aplicar|limpar|todos|page|página|qualquer)/i
-                    ) &&
-                    // Exclude "Ver mais" and similar expansion texts
-                    !subcat.match(/ver\s+mais|see\s+more|show\s+more|menos|less/i) &&
-                    // Exclude pure numbers (pagination, counts, etc.)
-                    !subcat.match(/^\d+$/) &&
-                    // Exclude very short texts (likely not real subcategories)
-                    subcat.length > 2 &&
-                    // Exclude if it's just "Departamento" or the category name itself
-                    !subcat.match(/^departamento$/i) &&
-                    // Exclude "Qualquer departamento" explicitly
-                    !subcat.match(/^qualquer\s+departamento$/i)
-            );
-
-            console.log(
-                `[BrowserPromotionRepository] Found ${filtered.length} subcategories: ${filtered.join(', ')}`
-            );
-
-            return filtered;
-        } catch (error) {
-            if (browser) {
+                // Close browser
                 await browser.close();
+                browser = null;
+
+                // Filter out common non-subcategory texts
+                const filtered = subcategories.filter(
+                    (subcat) =>
+                        // Exclude navigation/action texts
+                        !subcat.match(
+                            /^(mostrar|ver|filtrar|aplicar|limpar|todos|page|página|qualquer)/i
+                        ) &&
+                        // Exclude "Ver mais" and similar expansion texts
+                        !subcat.match(/ver\s+mais|see\s+more|show\s+more|menos|less/i) &&
+                        // Exclude pure numbers (pagination, counts, etc.)
+                        !subcat.match(/^\d+$/) &&
+                        // Exclude very short texts (likely not real subcategories)
+                        subcat.length > 2 &&
+                        // Exclude if it's just "Departamento" or the category name itself
+                        !subcat.match(/^departamento$/i) &&
+                        // Exclude "Qualquer departamento" explicitly
+                        !subcat.match(/^qualquer\s+departamento$/i)
+                );
+
+                console.log(
+                    `[BrowserPromotionRepository] Found ${filtered.length} subcategories: ${filtered.join(', ')}`
+                );
+
+                return filtered;
+            } catch (error) {
+                if (browser) {
+                    try {
+                        await browser.close();
+                    } catch (closeError) {
+                        console.error(
+                            '[BrowserPromotionRepository] Error closing browser:',
+                            closeError
+                        );
+                    }
+                    browser = null;
+                }
+
+                retries++;
+                const isLastAttempt = retries > maxRetries;
+
+                if (
+                    error instanceof Error &&
+                    error.message.includes('detached') &&
+                    !isLastAttempt
+                ) {
+                    console.warn(
+                        `[BrowserPromotionRepository] Frame detached error (attempt ${retries}/${maxRetries + 1}), retrying...`
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s before retry
+                    continue;
+                }
+
+                console.error(
+                    '[BrowserPromotionRepository] Error extracting subcategories:',
+                    error
+                );
+                // Return empty array on error - will proceed with no subcategories
+                return [];
             }
-            console.error('[BrowserPromotionRepository] Error extracting subcategories:', error);
-            // Return empty array on error - will proceed with no subcategories
-            return [];
         }
+
+        // If we reach here, all retries failed
+        console.warn('[BrowserPromotionRepository] All attempts to extract subcategories failed');
+        return [];
     }
 
     /**

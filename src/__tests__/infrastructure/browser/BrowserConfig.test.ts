@@ -51,10 +51,9 @@ describe('BrowserConfig', () => {
                     '--safebrowsing-disable-auto-update',
                     '--password-store=basic',
                     '--use-mock-keychain',
-                    // Aggressive memory reduction
-                    '--single-process',
+                    // Memory reduction (no single-process for stability)
                     '--disable-features=site-per-process',
-                    '--js-flags=--max-old-space-size=256',
+                    '--js-flags=--max-old-space-size=384',
                 ],
             });
             expect(options.executablePath).toBeUndefined();
@@ -99,10 +98,9 @@ describe('BrowserConfig', () => {
                     '--safebrowsing-disable-auto-update',
                     '--password-store=basic',
                     '--use-mock-keychain',
-                    // Aggressive memory reduction
-                    '--single-process',
+                    // Memory reduction (no single-process for stability)
                     '--disable-features=site-per-process',
-                    '--js-flags=--max-old-space-size=256',
+                    '--js-flags=--max-old-space-size=384',
                 ],
                 executablePath: testPath,
             });
@@ -126,10 +124,9 @@ describe('BrowserConfig', () => {
             expect(options.args).toContain('--no-zygote');
             expect(options.args).toContain('--disable-gpu');
 
-            // Memory optimization flags
-            expect(options.args).toContain('--single-process');
+            // Memory optimization flags (not including --single-process for stability)
             expect(options.args).toContain('--disable-extensions');
-            expect(options.args).toContain('--js-flags=--max-old-space-size=256');
+            expect(options.args).toContain('--js-flags=--max-old-space-size=384');
         });
     });
 });

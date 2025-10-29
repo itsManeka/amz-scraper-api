@@ -54,10 +54,9 @@ export class BrowserConfig {
                 '--password-store=basic',
                 '--use-mock-keychain',
 
-                // Aggressive memory reduction
-                '--single-process', // Run everything in one process (saves ~100-150 MB)
+                // Memory reduction (removed --single-process to avoid frame detachment issues)
                 '--disable-features=site-per-process', // Disable site isolation
-                '--js-flags=--max-old-space-size=256', // Limit V8 heap to 256 MB
+                '--js-flags=--max-old-space-size=384', // Limit V8 heap to 384 MB (increased from 256)
             ],
         };
 

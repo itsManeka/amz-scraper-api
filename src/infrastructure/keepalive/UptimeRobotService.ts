@@ -48,7 +48,7 @@ export class UptimeRobotService implements IKeepAliveService {
 
             const response = await axios.post(`${this.apiUrl}/editMonitor`, formData, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                timeout: 5000,
+                timeout: 15000, // Increased to 15s for slow API responses
             });
 
             if (response.data.stat === 'ok') {
@@ -85,7 +85,7 @@ export class UptimeRobotService implements IKeepAliveService {
 
             const response = await axios.post(`${this.apiUrl}/editMonitor`, formData, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                timeout: 5000,
+                timeout: 15000, // Increased to 15s for slow API responses
             });
 
             if (response.data.stat === 'ok') {
