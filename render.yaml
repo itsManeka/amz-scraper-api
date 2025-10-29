@@ -8,8 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: STORAGE_PATH
-        value: /opt/render/project/data
+      - key: DATABASE_URL
+        sync: false
       - key: CACHE_TTL_MINUTES
         value: 30
       - key: JOB_TIMEOUT_MINUTES
@@ -20,8 +20,4 @@ services:
         value: false
       - key: PUPPETEER_CACHE_DIR
         value: /opt/render/project/.cache/puppeteer
-    disk:
-      name: scraper-data
-      mountPath: /opt/render/project/data
-      sizeGB: 1
 

@@ -11,19 +11,23 @@ async function start(): Promise<void> {
     try {
         // Configuration from environment variables
         const config: AppConfig = {
-            storagePath: process.env.STORAGE_PATH || './data',
             cacheTtlMinutes: parseInt(process.env.CACHE_TTL_MINUTES || '30', 10),
             jobTimeoutMinutes: parseInt(process.env.JOB_TIMEOUT_MINUTES || '10', 10),
             // Default to 1 in production to prevent memory issues with Puppeteer
             maxConcurrentJobs: parseInt(process.env.MAX_CONCURRENT_JOBS || '1', 10),
         };
 
+        // Validate required environment variables
+        if (!process.env.DATABASE_URL) {
+            throw new Error('DATABASE_URL environment variable is required');
+        }
+
         const port = parseInt(process.env.PORT || '3000', 10);
 
         console.log('[Server] Initializing application...');
         console.log('[Server] Configuration:', {
             port,
-            storagePath: config.storagePath,
+            storage: 'PostgreSQL (Neon)',
             cacheTtlMinutes: config.cacheTtlMinutes,
             jobTimeoutMinutes: config.jobTimeoutMinutes,
             maxConcurrentJobs: config.maxConcurrentJobs,

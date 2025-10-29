@@ -15,7 +15,7 @@ import { ProductRepository } from '../infrastructure/repositories/ProductReposit
 import { BrowserPromotionRepository } from '../infrastructure/repositories/BrowserPromotionRepository';
 import { HttpClient } from '../infrastructure/http/HttpClient';
 import { AmazonHtmlParser } from '../infrastructure/parsers/AmazonHtmlParser';
-import { JsonFileStorage } from '../infrastructure/storage/JsonFileStorage';
+import { PostgresStorage } from '../infrastructure/storage/PostgresStorage';
 import { HybridCache } from '../infrastructure/cache/HybridCache';
 import { JobManager } from '../infrastructure/jobs/JobManager';
 import { UptimeRobotService } from '../infrastructure/keepalive/UptimeRobotService';
@@ -24,7 +24,6 @@ import { UptimeRobotService } from '../infrastructure/keepalive/UptimeRobotServi
  * Application configuration
  */
 export interface AppConfig {
-    storagePath: string;
     cacheTtlMinutes: number;
     jobTimeoutMinutes: number;
     maxConcurrentJobs: number;
@@ -47,7 +46,7 @@ export async function createApp(config: AppConfig): Promise<{
     app.use(express.urlencoded({ extended: true }));
 
     // Initialize infrastructure
-    const storage = new JsonFileStorage(config.storagePath);
+    const storage = new PostgresStorage();
     await storage.initialize();
 
     const cache = new HybridCache(config.cacheTtlMinutes * 60, storage);

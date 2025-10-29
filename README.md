@@ -191,8 +191,9 @@ NODE_ENV=production
 # Generate secure keys: openssl rand -base64 32
 API_KEYS=your-secure-api-key-here,another-optional-key
 
-# Storage
-STORAGE_PATH=./data
+# Database (REQUIRED)
+# PostgreSQL connection string from Neon or other provider
+DATABASE_URL=postgresql://user:password@host.neon.tech/dbname?sslmode=require
 
 # Cache (TTL in minutes)
 CACHE_TTL_MINUTES=30
@@ -246,21 +247,26 @@ API_KEYS=key_for_client_1,key_for_client_2,key_for_backup
    PORT=3000
    NODE_ENV=production
    API_KEYS=your-secure-api-key-here
-   STORAGE_PATH=./data
+   DATABASE_URL=postgresql://user:password@host.neon.tech/dbname?sslmode=require
    CACHE_TTL_MINUTES=30
    JOB_TIMEOUT_MINUTES=10
    MAX_CONCURRENT_JOBS=2
    ```
    
-   **Important**: Generate a secure API key:
-   ```bash
-   openssl rand -base64 32
-   ```
-   Or use Render's "Generate" button when adding the `API_KEYS` environment variable.
+   **Important**: 
+   - Generate a secure API key:
+     ```bash
+     openssl rand -base64 32
+     ```
+     Or use Render's "Generate" button when adding the `API_KEYS` environment variable.
+   - Get your `DATABASE_URL` from [Neon Console](https://console.neon.tech/) (see Database Setup below)
 
-5. **Add persistent disk:**
-   - Mount Path: `/opt/render/project/data`
-   - Size: 1 GB (free tier)
+5. **Setup PostgreSQL Database with Neon:**
+   - Create a free account at [Neon](https://neon.tech/)
+   - Create a new project
+   - Copy the connection string (it looks like `postgresql://user:password@host.neon.tech/dbname?sslmode=require`)
+   - Add it as `DATABASE_URL` environment variable in Render dashboard
+   - The application will automatically create the required tables on first run
 
 6. **Deploy!** The service will automatically deploy on push to main branch
 

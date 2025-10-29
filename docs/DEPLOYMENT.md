@@ -290,15 +290,39 @@ Ensure these are configured in Render.com dashboard:
 ```bash
 NODE_ENV=production
 PORT=3000
-STORAGE_PATH=/opt/render/project/data
+DATABASE_URL=postgresql://user:password@host.neon.tech/dbname?sslmode=require
 CACHE_TTL_MINUTES=30
 JOB_TIMEOUT_MINUTES=10
 MAX_CONCURRENT_JOBS=2
+API_KEYS=your-secure-api-key
 ```
 
-Also configure persistent disk:
-- Mount Path: `/opt/render/project/data`
-- Size: 1 GB (free tier)
+### Database Setup with Neon
+
+The application uses PostgreSQL for persistent storage. To set up:
+
+1. **Create Neon Account**:
+   - Go to [Neon](https://neon.tech/)
+   - Sign up for free account
+
+2. **Create Database**:
+   - Create a new project
+   - Select a region close to your Render deployment
+   - Copy the connection string
+
+3. **Configure Render**:
+   - In Render dashboard, add `DATABASE_URL` environment variable
+   - Paste your Neon connection string
+   - Format: `postgresql://user:password@host.neon.tech/dbname?sslmode=require`
+
+4. **Deploy**:
+   - The application automatically creates required tables on first run
+   - Check logs to verify database initialization: `[PostgresStorage] Database schema initialized successfully`
+
+**Note**: Neon free tier includes:
+- 512 MB storage
+- 100 hours/month compute time
+- Perfect for development and small production workloads
 
 ## Rollback Procedure
 
