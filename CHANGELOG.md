@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.2](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.1...v1.4.2) (2025-10-29)
+
+
+### Bug Fixes
+
+* force garbage collection after browser close to prevent OOM ([c9be525](https://github.com/itsManeka/amz-scraper-api/commit/c9be52505d6becd465819c0b5e15d71988806a2f))
+
 ## [1.4.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.0...v1.4.1) (2025-10-29)
 
 
