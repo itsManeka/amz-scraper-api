@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.0...v1.5.1) (2025-10-29)
+
+
+### Bug Fixes
+
+* resolve memory issues with race condition and lazy job creation ([b6a7f96](https://github.com/itsManeka/amz-scraper-api/commit/b6a7f9658aa0cedd5de79e0b5a28c71c41398df1))
+
 ## [1.5.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.3...v1.5.0) (2025-10-29)
 
 
