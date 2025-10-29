@@ -313,13 +313,18 @@ describe('BrowserPromotionRepository', () => {
             mockPage.content.mockResolvedValue(mockHtml);
             mockPage.waitForFunction.mockResolvedValue({} as any);
             mockPage.evaluate
-                .mockResolvedValueOnce(false) // Subcategory filter not found
+                .mockResolvedValueOnce(false) // Subcategory filter not found - attempt 1
+                .mockResolvedValueOnce(false) // Subcategory filter not found - attempt 2
+                .mockResolvedValueOnce(false) // Subcategory filter not found - attempt 3
                 .mockResolvedValue(false); // No "Show More" button
 
-            await repository.getPromotionById('ABC123', 'Livros', 'NonExistent');
+            await expect(
+                repository.getPromotionById('ABC123', 'Livros', 'NonExistent')
+            ).rejects.toThrow('Failed to apply subcategory filter "NonExistent" after 3 attempts');
 
             expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Subcategory filter not found')
+                expect.stringContaining('Attempt 1/3 failed'),
+                expect.anything()
             );
         }, 10000);
 
@@ -338,10 +343,12 @@ describe('BrowserPromotionRepository', () => {
             mockPage.evaluate.mockResolvedValue(false);
             mockPage.waitForFunction.mockResolvedValue({} as any);
 
-            await repository.getPromotionById('ABC123', 'Livros', 'Mangá');
+            await expect(repository.getPromotionById('ABC123', 'Livros', 'Mangá')).rejects.toThrow(
+                'Failed to apply subcategory filter "Mangá" after 3 attempts'
+            );
 
             expect(console.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Error applying subcategory filter'),
+                expect.stringContaining('Attempt 1/3 failed'),
                 expect.anything()
             );
         }, 10000);

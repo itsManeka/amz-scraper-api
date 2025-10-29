@@ -391,54 +391,79 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
     /**
      * Applies subcategory filter on the page
+     * Retries up to 3 times before failing
      * @param page - Puppeteer page instance
      * @param subcategory - Subcategory name
+     * @throws {Error} If filter cannot be applied after all retries
      */
     private async applySubcategoryFilter(page: Page, subcategory: string): Promise<void> {
-        try {
-            console.log(`[BrowserPromotionRepository] Applying subcategory filter: ${subcategory}`);
+        const maxRetries = 3;
+        let lastError: Error | null = null;
 
-            // Wait for department section to be available (using correct selector)
-            await page.waitForSelector('#department', {
-                timeout: 5000,
-            });
-
-            // Try to find and click the subcategory filter using the correct selector
-            const filterClicked = await page.evaluate((subcat: string) => {
-                // Look for subcategory elements using the exact selector from the page
-                // @ts-expect-error - DOM access in browser context
-                const subcategoryElements = document.querySelectorAll(
-                    '[data-name="departmentListSubCategoryItemText"]'
-                );
-
-                for (const element of subcategoryElements) {
-                    const text = element.textContent?.trim();
-                    const dataValue = element.getAttribute('data-value');
-
-                    // Match by text content or data-value attribute
-                    if (text === subcat || dataValue === subcat) {
-                        // @ts-expect-error - HTMLElement not available in evaluate context
-                        (element as HTMLElement).click();
-                        return true;
-                    }
-                }
-                return false;
-            }, subcategory);
-
-            if (filterClicked) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
                 console.log(
-                    '[BrowserPromotionRepository] Subcategory filter clicked, waiting for page update'
+                    `[BrowserPromotionRepository] Applying subcategory filter (attempt ${attempt}/${maxRetries}): ${subcategory}`
                 );
-                // Wait for the page to update after clicking the subcategory filter
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-            } else {
+
+                // Wait for department section to be available (using correct selector)
+                await page.waitForSelector('#department', {
+                    timeout: 5000,
+                });
+
+                // Try to find and click the subcategory filter using the correct selector
+                const filterClicked = await page.evaluate((subcat: string) => {
+                    // Look for subcategory elements using the exact selector from the page
+                    // @ts-expect-error - DOM access in browser context
+                    const subcategoryElements = document.querySelectorAll(
+                        '[data-name="departmentListSubCategoryItemText"]'
+                    );
+
+                    for (const element of subcategoryElements) {
+                        const text = element.textContent?.trim();
+                        const dataValue = element.getAttribute('data-value');
+
+                        // Match by text content or data-value attribute
+                        if (text === subcat || dataValue === subcat) {
+                            // @ts-expect-error - HTMLElement not available in evaluate context
+                            (element as HTMLElement).click();
+                            return true;
+                        }
+                    }
+                    return false;
+                }, subcategory);
+
+                if (filterClicked) {
+                    console.log(
+                        '[BrowserPromotionRepository] Subcategory filter clicked successfully, waiting for page update'
+                    );
+                    // Wait for the page to update after clicking the subcategory filter
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                    return; // Success, exit function
+                } else {
+                    throw new Error(`Subcategory element not found in DOM: ${subcategory}`);
+                }
+            } catch (error) {
+                lastError = error as Error;
                 console.warn(
-                    `[BrowserPromotionRepository] Subcategory filter not found: ${subcategory}`
+                    `[BrowserPromotionRepository] Attempt ${attempt}/${maxRetries} failed:`,
+                    error
                 );
+
+                // If not the last attempt, wait before retrying
+                if (attempt < maxRetries) {
+                    console.log(
+                        `[BrowserPromotionRepository] Waiting 2s before retry ${attempt + 1}...`
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                }
             }
-        } catch (error) {
-            console.warn('[BrowserPromotionRepository] Error applying subcategory filter:', error);
         }
+
+        // If we get here, all retries failed
+        const errorMessage = `Failed to apply subcategory filter "${subcategory}" after ${maxRetries} attempts: ${lastError?.message}`;
+        console.error(`[BrowserPromotionRepository] ${errorMessage}`);
+        throw new Error(errorMessage);
     }
 
     /**
@@ -609,6 +634,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                     console.log(
                         `[BrowserPromotionRepository] Products loaded: ${productCountBefore.max} -> ${productCountAfter.max} (data-asin: ${productCountBefore.dataAsin}->${productCountAfter.dataAsin}, links: ${productCountBefore.productLinks}->${productCountAfter.productLinks})`
                     );
+                    MemoryMonitor.log(`After Show More click ${clickCount}`);
                 } catch (waitError) {
                     const productCountAfter = await page.evaluate(() => {
                         // @ts-expect-error - DOM access in browser context
@@ -650,6 +676,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             // Scroll down multiple times to trigger lazy loading
             for (let i = 0; i < 5; i++) {
                 await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+                MemoryMonitor.log(`After scroll ${i + 1}/5`);
                 await new Promise((resolve) => setTimeout(resolve, 1000));
             }
 

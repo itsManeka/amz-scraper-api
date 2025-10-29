@@ -15,6 +15,7 @@ export class JobManager implements IJobManager {
     private readonly storage: IStorage | null;
     private readonly maxConcurrentJobs: number;
     private runningJobs = 0;
+    private runningParentJobs = 0; // Track running parent jobs for keep-alive control
     private promotionJobCounts: Map<string, number> = new Map(); // Track running jobs per promotion
     private readonly keepAliveService: IKeepAliveService | null;
     private jobCompletionCallbacks: Map<string, JobCompletionCallback[]> = new Map(); // Parent job ID -> callbacks
@@ -315,13 +316,20 @@ export class JobManager implements IJobManager {
         }
 
         const promotionId = job.metadata?.promotionId;
+        const isParentJob = !job.metadata?.parentJobId; // Parent jobs don't have parentJobId
 
         // Acquire slot (with race condition protection)
         await this.acquireSlot(jobId, promotionId);
 
+        // Track parent jobs for keep-alive control
+        if (isParentJob) {
+            this.runningParentJobs++;
+        }
+
         try {
-            // Activate keep-alive when first job starts
-            if (this.runningJobs === 1 && this.keepAliveService) {
+            // Activate keep-alive when first parent job starts
+            // This ensures monitor stays active throughout all child jobs execution
+            if (this.runningParentJobs === 1 && this.keepAliveService) {
                 await this.keepAliveService.activate();
             }
 
@@ -355,6 +363,11 @@ export class JobManager implements IJobManager {
             // CRITICAL: Always release slot in finally block
             this.releaseSlot(jobId, promotionId);
 
+            // Decrement parent job counter
+            if (isParentJob) {
+                this.runningParentJobs--;
+            }
+
             // Force garbage collection after each job to free Puppeteer memory
             // Critical for memory-constrained environments (Render free tier)
             if (global.gc) {
@@ -370,8 +383,9 @@ export class JobManager implements IJobManager {
                 await this.clearCompletedJobs(5);
             }
 
-            // Pause keep-alive when last job completes
-            if (this.runningJobs === 0 && this.keepAliveService) {
+            // Pause keep-alive only when all parent jobs complete
+            // This ensures monitor stays active throughout all child jobs execution
+            if (this.runningParentJobs === 0 && this.keepAliveService) {
                 await this.keepAliveService.pause();
             }
         }
