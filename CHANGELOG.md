@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.3...v1.5.0) (2025-10-29)
+
+
+### Features
+
+* memory monitor ([5bea485](https://github.com/itsManeka/amz-scraper-api/commit/5bea485103a60fef8413ff7d94a302e5c0c0ca4d))
+
 ## [1.4.3](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.2...v1.4.3) (2025-10-29)
 
 
