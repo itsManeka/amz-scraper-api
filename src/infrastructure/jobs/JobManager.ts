@@ -372,12 +372,12 @@ export class JobManager implements IJobManager {
             // Critical for memory-constrained environments (Render free tier)
             if (global.gc) {
                 MemoryMonitor.forceGC(`Job ${jobId.substring(0, 8)} completed`);
-                
+
                 // CRITICAL: Wait for OS to actually free memory
                 // Without this delay, external buffers from Puppeteer remain allocated
                 // causing 40-60MB memory leak per job
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                
+
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} - memory stabilized`);
             } else {
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} completed (no GC available)`);

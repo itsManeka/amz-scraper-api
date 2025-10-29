@@ -584,7 +584,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 // Wait a bit for the click to register and content to start loading
                 await new Promise((resolve) => setTimeout(resolve, 1000));
-                
+
                 // Log memory after each click to track growth
                 MemoryMonitor.log(`After Show More click ${clickCount}`);
 
