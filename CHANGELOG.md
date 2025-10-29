@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.2.0...v1.3.0) (2025-10-28)
+
+
+### Features
+
+* multjob subcategory scrape ([411090d](https://github.com/itsManeka/amz-scraper-api/commit/411090db16b4b6f0943aba58cb5156f31ed237ea))
+
+
+### Bug Fixes
+
+* improve logs for product batch ([da97a86](https://github.com/itsManeka/amz-scraper-api/commit/da97a860165657b11a8b69d2bba87f7e16a28a9c))
+* reduce coverage threshold to 70% to avoid integration tests with puppeteer ([4acdb71](https://github.com/itsManeka/amz-scraper-api/commit/4acdb71734ae7526b4572159b4f49011e6a9957a))
+
 ## [1.2.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.1.2...v1.2.0) (2025-10-27)
 
 
