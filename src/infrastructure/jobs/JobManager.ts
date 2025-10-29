@@ -372,6 +372,13 @@ export class JobManager implements IJobManager {
             // Critical for memory-constrained environments (Render free tier)
             if (global.gc) {
                 MemoryMonitor.forceGC(`Job ${jobId.substring(0, 8)} completed`);
+                
+                // CRITICAL: Wait for OS to actually free memory
+                // Without this delay, external buffers from Puppeteer remain allocated
+                // causing 40-60MB memory leak per job
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                
+                MemoryMonitor.log(`Job ${jobId.substring(0, 8)} - memory stabilized`);
             } else {
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} completed (no GC available)`);
             }
@@ -383,9 +390,11 @@ export class JobManager implements IJobManager {
                 await this.clearCompletedJobs(5);
             }
 
-            // Pause keep-alive only when all parent jobs complete
+            // Pause keep-alive only when NO jobs are running AND no jobs are pending
             // This ensures monitor stays active throughout all child jobs execution
-            if (this.runningParentJobs === 0 && this.keepAliveService) {
+            // even during gaps between job completions and new job starts
+            const hasPendingJobs = Array.from(this.jobs.values()).some((j) => j.isPending());
+            if (this.runningJobs === 0 && !hasPendingJobs && this.keepAliveService) {
                 await this.keepAliveService.pause();
             }
         }

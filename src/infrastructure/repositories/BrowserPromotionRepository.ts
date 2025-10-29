@@ -115,9 +115,13 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             MemoryMonitor.log('After closing browser (before GC)');
 
-            // Force garbage collection if available to free Puppeteer memory
+            // CRITICAL: Force double GC to free external buffers from Puppeteer
+            // Single GC only clears V8 heap, external buffers (network/images) need 2 passes
             if (global.gc) {
-                global.gc();
+                global.gc(); // First pass: V8 heap
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                global.gc(); // Second pass: External buffers
+                await new Promise((resolve) => setTimeout(resolve, 500));
             }
 
             MemoryMonitor.log('After GC');
@@ -310,18 +314,17 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 MemoryMonitor.log('After closing browser - extractSubcategories (before GC)');
 
-                // Force garbage collection if available to free Puppeteer memory
-                // This is critical for memory-constrained environments (Render free tier)
+                // CRITICAL: Force double GC to free external buffers from Puppeteer
+                // Single GC only clears V8 heap, external buffers need 2 passes
                 if (global.gc) {
-                    global.gc();
-                    console.log('[BrowserPromotionRepository] Garbage collection triggered');
+                    global.gc(); // First pass: V8 heap
+                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    global.gc(); // Second pass: External buffers
+                    console.log('[BrowserPromotionRepository] Double garbage collection triggered');
+                    await new Promise((resolve) => setTimeout(resolve, 1500));
                 }
 
                 MemoryMonitor.log('After GC - extractSubcategories');
-
-                // Give GC time to clean up Puppeteer memory before continuing
-                // This prevents OOM when creating multiple child jobs immediately after
-                await new Promise((resolve) => setTimeout(resolve, 2000));
 
                 // Filter out common non-subcategory texts
                 const filtered = subcategories.filter(
@@ -581,6 +584,9 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 // Wait a bit for the click to register and content to start loading
                 await new Promise((resolve) => setTimeout(resolve, 1000));
+                
+                // Log memory after each click to track growth
+                MemoryMonitor.log(`After Show More click ${clickCount}`);
 
                 // Wait for new products to load by checking if product count increased
                 try {
