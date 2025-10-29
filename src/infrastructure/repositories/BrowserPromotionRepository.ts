@@ -110,6 +110,11 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             await browser.close();
             browser = null;
 
+            // Force garbage collection if available to free Puppeteer memory
+            if (global.gc) {
+                global.gc();
+            }
+
             // Parse the HTML
             const { title, details } = this.parser.parsePromotionDetails(html);
             if (!title) {
@@ -295,6 +300,17 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 // Close browser
                 await browser.close();
                 browser = null;
+
+                // Force garbage collection if available to free Puppeteer memory
+                // This is critical for memory-constrained environments (Render free tier)
+                if (global.gc) {
+                    global.gc();
+                    console.log('[BrowserPromotionRepository] Garbage collection triggered');
+                }
+
+                // Give GC time to clean up Puppeteer memory before continuing
+                // This prevents OOM when creating multiple child jobs immediately after
+                await new Promise((resolve) => setTimeout(resolve, 2000));
 
                 // Filter out common non-subcategory texts
                 const filtered = subcategories.filter(

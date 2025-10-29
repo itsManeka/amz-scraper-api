@@ -18,7 +18,7 @@ import { BrowserPromotionRepository } from '../../infrastructure/repositories/Br
  * - Creates a single scraping job (original behavior)
  */
 export class StartPromotionScraping {
-    private readonly MAX_CHILD_JOBS = 50; // Reduced from 20 to prevent memory issues
+    private readonly MAX_CHILD_JOBS = 50; // Safe with GC + delay after extractSubcategories
     private readonly BATCH_PERSISTENCE_SIZE = 5; // Reduced from 10 for better memory management
 
     constructor(
