@@ -24,9 +24,9 @@ export class PostgresStorage implements IStorage {
         // Optimized pool configuration for Render free tier
         const poolConfig: PoolConfig = {
             connectionString,
-            max: 2, // Maximum 2 connections for memory efficiency
+            max: 4, // 4 connections balances throughput and memory (each ~5-10MB)
             idleTimeoutMillis: 10000, // Close idle connections after 10 seconds
-            connectionTimeoutMillis: 5000, // 5 second connection timeout
+            connectionTimeoutMillis: 30000, // 30 second connection timeout (allows queue with many jobs)
             ssl: connectionString.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
         };
 

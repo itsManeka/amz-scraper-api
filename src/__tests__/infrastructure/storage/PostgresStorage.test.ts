@@ -47,9 +47,9 @@ describe('PostgresStorage', () => {
             expect(Pool).toHaveBeenCalledWith(
                 expect.objectContaining({
                     connectionString: testDatabaseUrl,
-                    max: 2,
+                    max: 4,
                     idleTimeoutMillis: 10000,
-                    connectionTimeoutMillis: 5000,
+                    connectionTimeoutMillis: 30000,
                 })
             );
         });
