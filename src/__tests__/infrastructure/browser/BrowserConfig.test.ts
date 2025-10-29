@@ -51,6 +51,10 @@ describe('BrowserConfig', () => {
                     '--safebrowsing-disable-auto-update',
                     '--password-store=basic',
                     '--use-mock-keychain',
+                    // Anti-detection
+                    '--disable-blink-features=AutomationControlled',
+                    // Disable images to save memory
+                    '--blink-settings=imagesEnabled=false',
                     // Memory reduction (no single-process for stability)
                     '--disable-features=site-per-process',
                     '--js-flags=--max-old-space-size=384',
@@ -98,6 +102,10 @@ describe('BrowserConfig', () => {
                     '--safebrowsing-disable-auto-update',
                     '--password-store=basic',
                     '--use-mock-keychain',
+                    // Anti-detection
+                    '--disable-blink-features=AutomationControlled',
+                    // Disable images to save memory
+                    '--blink-settings=imagesEnabled=false',
                     // Memory reduction (no single-process for stability)
                     '--disable-features=site-per-process',
                     '--js-flags=--max-old-space-size=384',

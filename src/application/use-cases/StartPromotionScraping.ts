@@ -21,6 +21,8 @@ import { MemoryMonitor } from '../../infrastructure/monitoring/MemoryMonitor';
 export class StartPromotionScraping {
     private readonly MAX_CHILD_JOBS = 50; // All subcategories - safe with MAX_CONCURRENT_JOBS=1 and GC
     private readonly BATCH_PERSISTENCE_SIZE = 5; // Reduced from 10 for better memory management
+    private readonly INITIAL_JOB_BATCH = 10; // Create 10 jobs initially, rest on-demand
+    private readonly MIN_PENDING_JOBS = 3; // Create more jobs when pending count drops below this
 
     constructor(
         private readonly promotionRepository: IPromotionRepository,
@@ -131,7 +133,7 @@ export class StartPromotionScraping {
     }
 
     /**
-     * Spawns child jobs for each subcategory (with throttling)
+     * Spawns child jobs for each subcategory (with lazy creation for memory efficiency)
      */
     private async spawnChildJobs(parentJobId: string, request: ScrapeRequest): Promise<void> {
         try {
@@ -165,11 +167,11 @@ export class StartPromotionScraping {
             }
 
             console.log(
-                `[StartPromotionScraping] Creating ${subcategories.length} child jobs for parent ${parentJobId}`
+                `[StartPromotionScraping] Will create up to ${subcategories.length} child jobs for parent ${parentJobId} (${this.INITIAL_JOB_BATCH} initially, rest on-demand)`
             );
 
-            // Prepare all child job configurations
-            const childJobConfigs = subcategories.map((subcategory) => ({
+            // Prepare all child job configurations (but don't create them all yet)
+            const allJobConfigs = subcategories.map((subcategory) => ({
                 type: 'promotion-scraping',
                 executor: async () => {
                     return await this.promotionRepository.getPromotionById(
@@ -188,47 +190,16 @@ export class StartPromotionScraping {
                 },
             }));
 
-            // Create child jobs in batches to avoid overwhelming the system
-            const allChildJobs: Job<Promotion>[] = [];
-
-            for (let i = 0; i < childJobConfigs.length; i += this.BATCH_PERSISTENCE_SIZE) {
-                const batch = childJobConfigs.slice(i, i + this.BATCH_PERSISTENCE_SIZE);
-                console.log(
-                    `[StartPromotionScraping] Persisting batch ${Math.floor(i / this.BATCH_PERSISTENCE_SIZE) + 1} of ${Math.ceil(childJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} (${batch.length} jobs)`
-                );
-
-                const batchJobs = await this.jobManager.createJobsBatch<Promotion>(batch);
-                allChildJobs.push(...batchJobs);
-
-                // Small delay between batches to prevent I/O saturation
-                if (i + this.BATCH_PERSISTENCE_SIZE < childJobConfigs.length) {
-                    await new Promise((resolve) => setTimeout(resolve, 100));
-                }
+            // Use lazy creation if we have many jobs (>15), otherwise create all at once
+            if (allJobConfigs.length > 15) {
+                await this.createJobsLazily(parentJobId, allJobConfigs, request);
+            } else {
+                await this.createAllJobsImmediately(parentJobId, allJobConfigs, request);
             }
 
-            const childJobIds = allChildJobs.map((job) => job.id);
+            MemoryMonitor.log('After job creation setup (before GC)');
 
-            console.log(
-                `[StartPromotionScraping] Successfully created ${childJobIds.length} child jobs in ${Math.ceil(childJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} batches`
-            );
-
-            // Update parent job metadata with child job IDs and persist
-            await this.jobManager.updateJobMetadata(parentJobId, {
-                promotionId: request.promotionId,
-                category: request.category || undefined,
-                subcategory: undefined,
-                maxClicks: request.maxClicks,
-                childJobIds,
-            });
-
-            console.log(
-                `[StartPromotionScraping] Updated parent job ${parentJobId} with ${childJobIds.length} child job IDs`
-            );
-
-            MemoryMonitor.log('After creating all child jobs (before GC)');
-
-            // CRITICAL: Force garbage collection after creating many jobs
-            // Without this, 50 Job objects (~100MB) + Puppeteer memory causes OOM on Render free tier
+            // CRITICAL: Force garbage collection
             if (global.gc) {
                 global.gc();
                 console.log(
@@ -238,7 +209,7 @@ export class StartPromotionScraping {
 
             MemoryMonitor.log('After GC - ready for job execution');
 
-            // Give GC time to clean up job objects before execution starts
+            // Give GC time to clean up before execution starts
             await new Promise((resolve) => setTimeout(resolve, 2000));
         } catch (error) {
             console.error('[StartPromotionScraping] Failed to spawn child jobs:', error);
@@ -248,6 +219,129 @@ export class StartPromotionScraping {
                 throw error; // Let the parent job executor catch and handle the error
             }
         }
+    }
+
+    /**
+     * Creates all jobs immediately (for small job counts)
+     */
+    private async createAllJobsImmediately(
+        parentJobId: string,
+        childJobConfigs: Array<{
+            type: string;
+            executor: () => Promise<Promotion>;
+            metadata: any;
+        }>,
+        request: ScrapeRequest
+    ): Promise<void> {
+        const allChildJobs: Job<Promotion>[] = [];
+
+        for (let i = 0; i < childJobConfigs.length; i += this.BATCH_PERSISTENCE_SIZE) {
+            const batch = childJobConfigs.slice(i, i + this.BATCH_PERSISTENCE_SIZE);
+            console.log(
+                `[StartPromotionScraping] Persisting batch ${Math.floor(i / this.BATCH_PERSISTENCE_SIZE) + 1} of ${Math.ceil(childJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} (${batch.length} jobs)`
+            );
+
+            const batchJobs = await this.jobManager.createJobsBatch<Promotion>(batch);
+            allChildJobs.push(...batchJobs);
+
+            // Small delay between batches to prevent I/O saturation
+            if (i + this.BATCH_PERSISTENCE_SIZE < childJobConfigs.length) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        }
+
+        const childJobIds = allChildJobs.map((job) => job.id);
+
+        console.log(
+            `[StartPromotionScraping] Successfully created ${childJobIds.length} child jobs immediately`
+        );
+
+        // Update parent job metadata with child job IDs
+        await this.jobManager.updateJobMetadata(parentJobId, {
+            promotionId: request.promotionId,
+            category: request.category || undefined,
+            subcategory: undefined,
+            maxClicks: request.maxClicks,
+            childJobIds,
+        });
+    }
+
+    /**
+     * Creates jobs lazily: initial batch + more as jobs complete
+     */
+    private async createJobsLazily(
+        parentJobId: string,
+        allJobConfigs: Array<{
+            type: string;
+            executor: () => Promise<Promotion>;
+            metadata: any;
+        }>,
+        request: ScrapeRequest
+    ): Promise<void> {
+        const createdJobIds: string[] = [];
+        let nextConfigIndex = 0;
+
+        // Helper to create next batch of jobs
+        const createNextBatch = async (count: number): Promise<void> => {
+            const configsToCreate = allJobConfigs.slice(nextConfigIndex, nextConfigIndex + count);
+            if (configsToCreate.length === 0) return;
+
+            console.log(
+                `[StartPromotionScraping] Creating next batch: ${configsToCreate.length} jobs (${nextConfigIndex + 1}-${nextConfigIndex + configsToCreate.length} of ${allJobConfigs.length})`
+            );
+
+            const newJobs = await this.jobManager.createJobsBatch<Promotion>(configsToCreate);
+            const newJobIds = newJobs.map((j) => j.id);
+            createdJobIds.push(...newJobIds);
+            nextConfigIndex += configsToCreate.length;
+
+            // Update parent metadata with all created job IDs so far
+            await this.jobManager.updateJobMetadata(parentJobId, {
+                promotionId: request.promotionId,
+                category: request.category || undefined,
+                subcategory: undefined,
+                maxClicks: request.maxClicks,
+                childJobIds: createdJobIds,
+            });
+        };
+
+        // Create initial batch
+        await createNextBatch(this.INITIAL_JOB_BATCH);
+        console.log(
+            `[StartPromotionScraping] Created initial batch of ${this.INITIAL_JOB_BATCH} jobs, will create remaining ${allJobConfigs.length - this.INITIAL_JOB_BATCH} on-demand`
+        );
+
+        // Register callback to create more jobs as they complete
+        this.jobManager.registerJobCompletionCallback(parentJobId, async (jobId, success) => {
+            // Count how many jobs are still pending
+            const allJobs = await this.jobManager.findJobsByPromotionId(request.promotionId);
+            const childJobs = allJobs.filter((j) => j.metadata?.parentJobId === parentJobId);
+            const pendingCount = childJobs.filter((j) => j.isPending()).length;
+
+            console.log(
+                `[StartPromotionScraping] Child job ${jobId.substring(0, 8)} completed (success=${success}), pending jobs: ${pendingCount}, remaining configs: ${allJobConfigs.length - nextConfigIndex}`
+            );
+
+            // If we're running low on pending jobs and have more configs, create more
+            if (pendingCount < this.MIN_PENDING_JOBS && nextConfigIndex < allJobConfigs.length) {
+                const batchSize = Math.min(
+                    this.BATCH_PERSISTENCE_SIZE,
+                    allJobConfigs.length - nextConfigIndex
+                );
+                await createNextBatch(batchSize);
+            }
+
+            // If all jobs are done, clean up callback
+            if (nextConfigIndex >= allJobConfigs.length && pendingCount === 0) {
+                const runningCount = childJobs.filter((j) => j.isRunning()).length;
+                if (runningCount === 0) {
+                    console.log(
+                        `[StartPromotionScraping] All child jobs completed for parent ${parentJobId}, unregistering callbacks`
+                    );
+                    this.jobManager.unregisterJobCompletionCallbacks(parentJobId);
+                }
+            }
+        });
     }
 
     /**

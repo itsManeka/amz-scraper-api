@@ -535,4 +535,148 @@ describe('JobManager', () => {
             consoleErrorSpy.mockRestore();
         });
     });
+
+    describe('job completion callbacks', () => {
+        beforeEach(() => {
+            jobManager = new JobManager(mockStorage, 1);
+        });
+
+        it('should register and call completion callback when child job completes successfully', async () => {
+            const parentJobId = 'parent-123';
+            const callback = jest.fn();
+
+            // Register callback
+            jobManager.registerJobCompletionCallback(parentJobId, callback);
+
+            // Create a child job
+            const executor = jest.fn().mockResolvedValue('result');
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId,
+                promotionId: 'promo-123',
+            });
+
+            // Wait for job to complete
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Callback should be called with job ID and success=true
+            expect(callback).toHaveBeenCalledWith(job.id, true);
+        });
+
+        it('should call completion callback when child job fails', async () => {
+            const parentJobId = 'parent-456';
+            const callback = jest.fn();
+
+            // Register callback
+            jobManager.registerJobCompletionCallback(parentJobId, callback);
+
+            // Create a child job that will fail
+            const executor = jest.fn().mockRejectedValue(new Error('Job failed'));
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId,
+                promotionId: 'promo-123',
+            });
+
+            // Wait for job to fail
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Callback should be called with job ID and success=false
+            expect(callback).toHaveBeenCalledWith(job.id, false);
+        });
+
+        it('should not call callback for jobs without parentJobId', async () => {
+            const callback = jest.fn();
+
+            // Register callback for non-existent parent
+            jobManager.registerJobCompletionCallback('parent-789', callback);
+
+            // Create a job WITHOUT parentJobId
+            const executor = jest.fn().mockResolvedValue('result');
+            await jobManager.createJob('test', executor, {
+                promotionId: 'promo-123',
+            });
+
+            // Wait
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Callback should NOT be called
+            expect(callback).not.toHaveBeenCalled();
+        });
+
+        it('should support multiple callbacks for same parent job', async () => {
+            const parentJobId = 'parent-multi';
+            const callback1 = jest.fn();
+            const callback2 = jest.fn();
+
+            // Register multiple callbacks
+            jobManager.registerJobCompletionCallback(parentJobId, callback1);
+            jobManager.registerJobCompletionCallback(parentJobId, callback2);
+
+            // Create a child job
+            const executor = jest.fn().mockResolvedValue('result');
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId,
+            });
+
+            // Wait for job to complete
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Both callbacks should be called
+            expect(callback1).toHaveBeenCalledWith(job.id, true);
+            expect(callback2).toHaveBeenCalledWith(job.id, true);
+        });
+
+        it('should unregister callbacks', async () => {
+            const parentJobId = 'parent-unregister';
+            const callback = jest.fn();
+
+            // Register callback
+            jobManager.registerJobCompletionCallback(parentJobId, callback);
+
+            // Unregister callbacks
+            jobManager.unregisterJobCompletionCallbacks(parentJobId);
+
+            // Create a child job
+            const executor = jest.fn().mockResolvedValue('result');
+            await jobManager.createJob('test', executor, {
+                parentJobId,
+            });
+
+            // Wait
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Callback should NOT be called
+            expect(callback).not.toHaveBeenCalled();
+        });
+
+        it('should handle callback errors gracefully', async () => {
+            const parentJobId = 'parent-error';
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+            // Register callback that throws
+            const throwingCallback = jest.fn().mockImplementation(() => {
+                throw new Error('Callback error');
+            });
+            jobManager.registerJobCompletionCallback(parentJobId, throwingCallback);
+
+            // Create a child job
+            const executor = jest.fn().mockResolvedValue('result');
+            await jobManager.createJob('test', executor, {
+                parentJobId,
+            });
+
+            // Wait for job to complete
+            await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Callback should have been called
+            expect(throwingCallback).toHaveBeenCalled();
+
+            // Error should be logged
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                '[JobManager] Error in job completion callback:',
+                expect.any(Error)
+            );
+
+            consoleErrorSpy.mockRestore();
+        });
+    });
 });

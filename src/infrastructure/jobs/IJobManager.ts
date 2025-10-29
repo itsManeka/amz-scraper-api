@@ -1,6 +1,11 @@
 import { Job, JobStatus, JobMetadata } from '../../domain/entities/Job';
 
 /**
+ * Callback for job completion events
+ */
+export type JobCompletionCallback = (jobId: string, success: boolean) => void;
+
+/**
  * Job manager interface for managing asynchronous jobs
  */
 export interface IJobManager {
@@ -102,4 +107,19 @@ export interface IJobManager {
      * @returns true if job was requeued, false otherwise
      */
     retryJob<T>(jobId: string, executor: () => Promise<T>): Promise<boolean>;
+
+    /**
+     * Registers a callback to be called when child jobs complete
+     * Used for lazy job creation: create more jobs as previous ones finish
+     * @param parentJobId - Parent job ID to monitor
+     * @param callback - Function to call when a child completes
+     */
+    registerJobCompletionCallback(parentJobId: string, callback: JobCompletionCallback): void;
+
+    /**
+     * Unregisters all callbacks for a parent job
+     * Should be called when parent job completes or is no longer needed
+     * @param parentJobId - Parent job ID
+     */
+    unregisterJobCompletionCallbacks(parentJobId: string): void;
 }

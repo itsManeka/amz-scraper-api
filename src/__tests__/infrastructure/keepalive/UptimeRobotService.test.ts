@@ -238,4 +238,118 @@ describe('UptimeRobotService', () => {
             expect(mockedAxios.post).not.toHaveBeenCalled();
         });
     });
+
+    describe('concurrent call prevention', () => {
+        beforeEach(() => {
+            process.env.UPTIME_ROBOT_API_KEY = 'test-api-key';
+            process.env.UPTIME_ROBOT_MONITOR_ID = '123456';
+            service = new UptimeRobotService();
+        });
+
+        it('should prevent concurrent activation calls', async () => {
+            // Mock slow API response
+            mockedAxios.post.mockImplementation(
+                () =>
+                    new Promise((resolve) =>
+                        setTimeout(() => resolve({ data: { stat: 'ok' } }), 100)
+                    )
+            );
+
+            // Call activate twice simultaneously
+            const promise1 = service.activate();
+            const promise2 = service.activate();
+
+            await Promise.all([promise1, promise2]);
+
+            // Should only call API once
+            expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+        });
+
+        it('should prevent concurrent pause calls', async () => {
+            // First activate
+            mockedAxios.post.mockResolvedValueOnce({
+                data: { stat: 'ok' },
+            });
+            await service.activate();
+
+            // Clear previous calls
+            mockedAxios.post.mockClear();
+
+            // Mock slow pause response
+            mockedAxios.post.mockImplementation(
+                () =>
+                    new Promise((resolve) =>
+                        setTimeout(() => resolve({ data: { stat: 'ok' } }), 100)
+                    )
+            );
+
+            // Call pause twice simultaneously
+            const promise1 = service.pause();
+            const promise2 = service.pause();
+
+            await Promise.all([promise1, promise2]);
+
+            // Should only call API once (for pause, activation was cleared)
+            expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+        });
+
+        it('should handle timeout errors gracefully', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+            const timeoutError = new Error('timeout of 15000ms exceeded');
+            mockedAxios.post.mockRejectedValueOnce(timeoutError);
+
+            await service.activate();
+
+            // Should log as warning, not error
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Monitor activation timeout')
+            );
+            expect(service.isActive()).toBe(false);
+
+            consoleWarnSpy.mockRestore();
+        });
+
+        it('should handle pause timeout errors gracefully', async () => {
+            const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
+            // Activate first
+            mockedAxios.post.mockResolvedValueOnce({
+                data: { stat: 'ok' },
+            });
+            await service.activate();
+
+            // Then timeout on pause
+            const timeoutError = new Error('timeout of 15000ms exceeded');
+            mockedAxios.post.mockRejectedValueOnce(timeoutError);
+
+            await service.pause();
+
+            // Should log as warning
+            expect(consoleWarnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Monitor pause timeout')
+            );
+
+            consoleWarnSpy.mockRestore();
+            consoleLogSpy.mockRestore();
+        });
+
+        it('should still log regular errors as errors', async () => {
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+            const networkError = new Error('ECONNREFUSED');
+            mockedAxios.post.mockRejectedValueOnce(networkError);
+
+            await service.activate();
+
+            // Should log as error (not warning)
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Error activating monitor'),
+                'ECONNREFUSED'
+            );
+
+            consoleErrorSpy.mockRestore();
+        });
+    });
 });

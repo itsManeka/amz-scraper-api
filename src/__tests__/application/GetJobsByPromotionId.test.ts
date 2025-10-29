@@ -19,6 +19,8 @@ describe('GetJobsByPromotionId', () => {
             updateJobMetadata: jest.fn(),
             createJobsBatch: jest.fn(),
             retryJob: jest.fn(),
+            registerJobCompletionCallback: jest.fn(),
+            unregisterJobCompletionCallbacks: jest.fn(),
         };
 
         useCase = new GetJobsByPromotionId(mockJobManager);

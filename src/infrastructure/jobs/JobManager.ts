@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Job, JobStatus, JobMetadata } from '../../domain/entities/Job';
-import { IJobManager } from './IJobManager';
+import { IJobManager, JobCompletionCallback } from './IJobManager';
 import { IStorage } from '../storage/IStorage';
 import { StorageKeys } from '../storage/StorageKeys';
 import { IKeepAliveService } from '../keepalive/IKeepAliveService';
@@ -17,6 +17,7 @@ export class JobManager implements IJobManager {
     private runningJobs = 0;
     private promotionJobCounts: Map<string, number> = new Map(); // Track running jobs per promotion
     private readonly keepAliveService: IKeepAliveService | null;
+    private jobCompletionCallbacks: Map<string, JobCompletionCallback[]> = new Map(); // Parent job ID -> callbacks
 
     constructor(
         storage: IStorage | null = null,
@@ -246,6 +247,63 @@ export class JobManager implements IJobManager {
     }
 
     /**
+     * Acquires a slot for job execution (prevents race condition)
+     * @param jobId - Job ID for logging
+     * @param promotionId - Optional promotion ID for fair scheduling
+     */
+    private async acquireSlot(jobId: string, promotionId?: string): Promise<void> {
+        // Wait until a slot is available
+        while (this.runningJobs >= this.maxConcurrentJobs) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Fair scheduling: if this promotion has been waiting and another is running,
+            // check if we should prioritize this one
+            if (promotionId && this.shouldPrioritizePromotion(promotionId)) {
+                // Allow this job to cut in line if its promotion has been waiting
+                break;
+            }
+        }
+
+        // CRITICAL: Increment IMMEDIATELY to prevent race condition
+        // Multiple jobs checking the while condition simultaneously must not all pass through
+        this.runningJobs++;
+
+        if (promotionId) {
+            this.promotionJobCounts.set(
+                promotionId,
+                (this.promotionJobCounts.get(promotionId) || 0) + 1
+            );
+        }
+
+        // Log active jobs for monitoring
+        console.log(
+            `[JobManager] Slot acquired by ${jobId.substring(0, 8)} | Active jobs: ${this.runningJobs}/${this.maxConcurrentJobs}`
+        );
+    }
+
+    /**
+     * Releases a slot after job execution (always called in finally block)
+     * @param promotionId - Optional promotion ID for fair scheduling
+     */
+    private releaseSlot(jobId: string, promotionId?: string): void {
+        this.runningJobs--;
+
+        if (promotionId) {
+            const count = this.promotionJobCounts.get(promotionId) || 1;
+            if (count <= 1) {
+                this.promotionJobCounts.delete(promotionId);
+            } else {
+                this.promotionJobCounts.set(promotionId, count - 1);
+            }
+        }
+
+        // Log active jobs for monitoring
+        console.log(
+            `[JobManager] Slot released by ${jobId.substring(0, 8)} | Active jobs: ${this.runningJobs}/${this.maxConcurrentJobs}`
+        );
+    }
+
+    /**
      * Executes a job with fair scheduling across promotions
      * @param jobId - Job ID
      * @param executor - Function to execute
@@ -258,33 +316,16 @@ export class JobManager implements IJobManager {
 
         const promotionId = job.metadata?.promotionId;
 
-        // Wait if too many jobs are running OR if another promotion is monopolizing
-        while (this.runningJobs >= this.maxConcurrentJobs) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Fair scheduling: if this promotion has been waiting and another is running,
-            // check if we should prioritize this one
-            if (promotionId && this.shouldPrioritizePromotion(promotionId)) {
-                // Allow this job to cut in line if its promotion has been waiting
-                break;
-            }
-        }
+        // Acquire slot (with race condition protection)
+        await this.acquireSlot(jobId, promotionId);
 
         try {
             // Activate keep-alive when first job starts
-            if (this.runningJobs === 0 && this.keepAliveService) {
+            if (this.runningJobs === 1 && this.keepAliveService) {
                 await this.keepAliveService.activate();
             }
 
             // Mark as running
-            this.runningJobs++;
-            if (promotionId) {
-                this.promotionJobCounts.set(
-                    promotionId,
-                    (this.promotionJobCounts.get(promotionId) || 0) + 1
-                );
-            }
-
             job = job.withStatus('running');
             this.jobs.set(jobId, job);
             await this.persistJob(job);
@@ -298,22 +339,21 @@ export class JobManager implements IJobManager {
             job = job.withResult(result);
             this.jobs.set(jobId, job);
             await this.persistJob(job);
+
+            // Notify callbacks (for lazy job creation)
+            this.notifyJobCompletion(job);
         } catch (error) {
             // Mark as failed
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             job = job.withError(errorMessage);
             this.jobs.set(jobId, job);
             await this.persistJob(job);
+
+            // Notify callbacks even on failure
+            this.notifyJobCompletion(job);
         } finally {
-            this.runningJobs--;
-            if (promotionId) {
-                const count = this.promotionJobCounts.get(promotionId) || 1;
-                if (count <= 1) {
-                    this.promotionJobCounts.delete(promotionId);
-                } else {
-                    this.promotionJobCounts.set(promotionId, count - 1);
-                }
-            }
+            // CRITICAL: Always release slot in finally block
+            this.releaseSlot(jobId, promotionId);
 
             // Force garbage collection after each job to free Puppeteer memory
             // Critical for memory-constrained environments (Render free tier)
@@ -457,6 +497,55 @@ export class JobManager implements IJobManager {
         console.log(`[JobManager] Retrying job ${jobId} after server restart`);
 
         return true;
+    }
+
+    /**
+     * Registers a callback to be called when child jobs complete
+     * Used for lazy job creation: create more jobs as previous ones finish
+     * @param parentJobId - Parent job ID to monitor
+     * @param callback - Function to call when a child completes
+     */
+    registerJobCompletionCallback(parentJobId: string, callback: JobCompletionCallback): void {
+        if (!this.jobCompletionCallbacks.has(parentJobId)) {
+            this.jobCompletionCallbacks.set(parentJobId, []);
+        }
+        this.jobCompletionCallbacks.get(parentJobId)!.push(callback);
+    }
+
+    /**
+     * Unregisters all callbacks for a parent job
+     * Should be called when parent job completes
+     * @param parentJobId - Parent job ID
+     */
+    unregisterJobCompletionCallbacks(parentJobId: string): void {
+        this.jobCompletionCallbacks.delete(parentJobId);
+    }
+
+    /**
+     * Notifies callbacks when a job completes
+     * @param job - Completed job
+     */
+    private notifyJobCompletion(job: Job): void {
+        const parentJobId = job.metadata?.parentJobId;
+        if (!parentJobId) {
+            return;
+        }
+
+        const callbacks = this.jobCompletionCallbacks.get(parentJobId);
+        if (!callbacks || callbacks.length === 0) {
+            return;
+        }
+
+        const success = job.status === 'completed' && !job.hasFailed();
+
+        // Call all callbacks (they should handle errors internally)
+        for (const callback of callbacks) {
+            try {
+                callback(job.id, success);
+            } catch (error) {
+                console.error('[JobManager] Error in job completion callback:', error);
+            }
+        }
     }
 
     /**

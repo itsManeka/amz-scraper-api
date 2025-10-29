@@ -15,6 +15,8 @@ export class UptimeRobotService implements IKeepAliveService {
     private readonly monitorId: string | null;
     private readonly apiUrl = 'https://api.uptimerobot.com/v2';
     private active = false;
+    private activating = false; // Prevent concurrent activation calls
+    private pausing = false; // Prevent concurrent pause calls
 
     constructor() {
         this.apiKey = process.env.UPTIME_ROBOT_API_KEY || null;
@@ -35,9 +37,11 @@ export class UptimeRobotService implements IKeepAliveService {
      * Monitor will ping the server every 5 minutes to keep it awake
      */
     async activate(): Promise<void> {
-        if (!this.canOperate() || this.active) {
+        if (!this.canOperate() || this.active || this.activating) {
             return;
         }
+
+        this.activating = true;
 
         try {
             const formData = new URLSearchParams({
@@ -60,10 +64,15 @@ export class UptimeRobotService implements IKeepAliveService {
                 console.error('[UptimeRobot] ❌ Failed to activate monitor:', response.data);
             }
         } catch (error) {
-            console.error(
-                '[UptimeRobot] ❌ Error activating monitor:',
-                this.getErrorMessage(error)
-            );
+            // Don't spam logs on timeout - it's not critical if activation fails
+            const errorMsg = this.getErrorMessage(error);
+            if (errorMsg.includes('timeout')) {
+                console.warn('[UptimeRobot] ⚠️  Monitor activation timeout (non-critical)');
+            } else {
+                console.error('[UptimeRobot] ❌ Error activating monitor:', errorMsg);
+            }
+        } finally {
+            this.activating = false;
         }
     }
 
@@ -72,9 +81,11 @@ export class UptimeRobotService implements IKeepAliveService {
      * Monitor will stop pinging, allowing server to sleep if idle
      */
     async pause(): Promise<void> {
-        if (!this.canOperate() || !this.active) {
+        if (!this.canOperate() || !this.active || this.pausing) {
             return;
         }
+
+        this.pausing = true;
 
         try {
             const formData = new URLSearchParams({
@@ -95,7 +106,15 @@ export class UptimeRobotService implements IKeepAliveService {
                 console.error('[UptimeRobot] ❌ Failed to pause monitor:', response.data);
             }
         } catch (error) {
-            console.error('[UptimeRobot] ❌ Error pausing monitor:', this.getErrorMessage(error));
+            // Don't spam logs on timeout - it's not critical if pause fails
+            const errorMsg = this.getErrorMessage(error);
+            if (errorMsg.includes('timeout')) {
+                console.warn('[UptimeRobot] ⚠️  Monitor pause timeout (non-critical)');
+            } else {
+                console.error('[UptimeRobot] ❌ Error pausing monitor:', errorMsg);
+            }
+        } finally {
+            this.pausing = false;
         }
     }
 

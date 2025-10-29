@@ -54,6 +54,12 @@ export class BrowserConfig {
                 '--password-store=basic',
                 '--use-mock-keychain',
 
+                // Anti-detection: Remove automation indicators
+                '--disable-blink-features=AutomationControlled',
+
+                // Disable images to save 30-50MB per scrape (text/ASIN extraction only)
+                '--blink-settings=imagesEnabled=false',
+
                 // Memory reduction (removed --single-process to avoid frame detachment issues)
                 '--disable-features=site-per-process', // Disable site isolation
                 '--js-flags=--max-old-space-size=384', // Limit V8 heap to 384 MB (increased from 256)

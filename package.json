@@ -4,7 +4,7 @@
 	"description": "Amazon Brazil scraper API for extracting product information and coupons",
 	"main": "dist/api/server.js",
 	"scripts": {
-		"start": "node --expose-gc dist/api/server.js",
+		"start": "node --expose-gc --max-old-space-size=400 dist/api/server.js",
 		"dev": "ts-node src/api/server.ts",
 		"build": "tsc",
 		"postinstall": "npx puppeteer browsers install chrome || true",
