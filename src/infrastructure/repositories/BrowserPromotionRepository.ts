@@ -6,6 +6,7 @@ import { PromotionNotFoundError, ParsingError } from '../errors/ScraperError';
 import { BrowserConfig } from '../browser/BrowserConfig';
 import { UserAgentRotator } from '../browser/UserAgentRotator';
 import { HeadersRotator } from '../browser/HeadersRotator';
+import { MemoryMonitor } from '../monitoring/MemoryMonitor';
 
 /**
  * Repository for fetching promotion data using a headless browser
@@ -83,6 +84,8 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             console.log(`[BrowserPromotionRepository] Navigating to: ${url}`);
 
+            MemoryMonitor.log('Before launching browser');
+
             // Navigate to promotion page with more resilient options
             await page.goto(url, {
                 waitUntil: 'domcontentloaded', // Changed from networkidle2 to be less strict
@@ -110,10 +113,14 @@ export class BrowserPromotionRepository implements IPromotionRepository {
             await browser.close();
             browser = null;
 
+            MemoryMonitor.log('After closing browser (before GC)');
+
             // Force garbage collection if available to free Puppeteer memory
             if (global.gc) {
                 global.gc();
             }
+
+            MemoryMonitor.log('After GC');
 
             // Parse the HTML
             const { title, details } = this.parser.parsePromotionDetails(html);
@@ -301,12 +308,16 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 await browser.close();
                 browser = null;
 
+                MemoryMonitor.log('After closing browser - extractSubcategories (before GC)');
+
                 // Force garbage collection if available to free Puppeteer memory
                 // This is critical for memory-constrained environments (Render free tier)
                 if (global.gc) {
                     global.gc();
                     console.log('[BrowserPromotionRepository] Garbage collection triggered');
                 }
+
+                MemoryMonitor.log('After GC - extractSubcategories');
 
                 // Give GC time to clean up Puppeteer memory before continuing
                 // This prevents OOM when creating multiple child jobs immediately after

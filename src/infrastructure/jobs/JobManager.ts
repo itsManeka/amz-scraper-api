@@ -4,6 +4,7 @@ import { IJobManager } from './IJobManager';
 import { IStorage } from '../storage/IStorage';
 import { StorageKeys } from '../storage/StorageKeys';
 import { IKeepAliveService } from '../keepalive/IKeepAliveService';
+import { MemoryMonitor } from '../monitoring/MemoryMonitor';
 
 /**
  * In-memory job manager with optional persistent storage
@@ -288,6 +289,8 @@ export class JobManager implements IJobManager {
             this.jobs.set(jobId, job);
             await this.persistJob(job);
 
+            MemoryMonitor.log(`Job ${jobId.substring(0, 8)} starting`);
+
             // Execute the job
             const result = await executor();
 
@@ -310,6 +313,21 @@ export class JobManager implements IJobManager {
                 } else {
                     this.promotionJobCounts.set(promotionId, count - 1);
                 }
+            }
+
+            // Force garbage collection after each job to free Puppeteer memory
+            // Critical for memory-constrained environments (Render free tier)
+            if (global.gc) {
+                MemoryMonitor.forceGC(`Job ${jobId.substring(0, 8)} completed`);
+            } else {
+                MemoryMonitor.log(`Job ${jobId.substring(0, 8)} completed (no GC available)`);
+            }
+
+            // Auto-clean completed child jobs to prevent memory buildup
+            // Only clean if this is a child job (has parentJobId) and it's completed
+            if (job.metadata?.parentJobId && job.isCompleted()) {
+                // Clean jobs older than 5 minutes to keep recent history
+                await this.clearCompletedJobs(5);
             }
 
             // Pause keep-alive when last job completes

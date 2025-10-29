@@ -4,6 +4,7 @@ import { Job } from '../../domain/entities/Job';
 import { IJobManager } from '../../infrastructure/jobs/IJobManager';
 import { Promotion } from '../../domain/entities/Promotion';
 import { BrowserPromotionRepository } from '../../infrastructure/repositories/BrowserPromotionRepository';
+import { MemoryMonitor } from '../../infrastructure/monitoring/MemoryMonitor';
 
 /**
  * Use case for starting a promotion scraping job
@@ -18,7 +19,7 @@ import { BrowserPromotionRepository } from '../../infrastructure/repositories/Br
  * - Creates a single scraping job (original behavior)
  */
 export class StartPromotionScraping {
-    private readonly MAX_CHILD_JOBS = 50; // Safe with GC + delay after extractSubcategories
+    private readonly MAX_CHILD_JOBS = 50; // All subcategories - safe with MAX_CONCURRENT_JOBS=1 and GC
     private readonly BATCH_PERSISTENCE_SIZE = 5; // Reduced from 10 for better memory management
 
     constructor(
@@ -223,6 +224,22 @@ export class StartPromotionScraping {
             console.log(
                 `[StartPromotionScraping] Updated parent job ${parentJobId} with ${childJobIds.length} child job IDs`
             );
+
+            MemoryMonitor.log('After creating all child jobs (before GC)');
+
+            // CRITICAL: Force garbage collection after creating many jobs
+            // Without this, 50 Job objects (~100MB) + Puppeteer memory causes OOM on Render free tier
+            if (global.gc) {
+                global.gc();
+                console.log(
+                    '[StartPromotionScraping] Garbage collection triggered after job creation'
+                );
+            }
+
+            MemoryMonitor.log('After GC - ready for job execution');
+
+            // Give GC time to clean up job objects before execution starts
+            await new Promise((resolve) => setTimeout(resolve, 2000));
         } catch (error) {
             console.error('[StartPromotionScraping] Failed to spawn child jobs:', error);
             // Update parent job with error
