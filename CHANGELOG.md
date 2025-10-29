@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.2](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.1...v1.5.2) (2025-10-29)
+
+
+### Bug Fixes
+
+* reduce default maxClicks to 5 and fix subcategroy filter errors ([d55c9f7](https://github.com/itsManeka/amz-scraper-api/commit/d55c9f7f8056454e089bf3b909fc9298ec9ea966))
+
 ## [1.5.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.0...v1.5.1) (2025-10-29)
 
 
