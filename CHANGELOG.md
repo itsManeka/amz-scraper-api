@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.4](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.3...v1.5.4) (2025-10-29)
+
+
+### Bug Fixes
+
+* fix lint errors ([ecce0b8](https://github.com/itsManeka/amz-scraper-api/commit/ecce0b89520a9de6a95db189a9a181a27871bfb8))
+* resolve Puppeteer memory leak with double GC and fix keepalive logic ([f88750a](https://github.com/itsManeka/amz-scraper-api/commit/f88750a95826000a12aa9ce01ac5b3b6225f348f))
+* test coverage ([365fec1](https://github.com/itsManeka/amz-scraper-api/commit/365fec15d562118c0bf923c9f2a45e9d960745e8))
+
 ## [1.5.3](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.2...v1.5.3) (2025-10-29)
 
 
