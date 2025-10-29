@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.4.0...v1.4.1) (2025-10-29)
+
+
+### Bug Fixes
+
+* resolve puppeteer frame detached error with retry mechanism ([96a40ce](https://github.com/itsManeka/amz-scraper-api/commit/96a40ce6d6ce436f3c8a1144cececbe639ecca61))
+
 ## [1.4.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.3.0...v1.4.0) (2025-10-29)
 
 
