@@ -395,4 +395,164 @@ describe('StartPromotionScraping Use Case', () => {
             expect(result).toBe(newJob);
         });
     });
+
+    describe('resumeParentJob', () => {
+        it('should create missing child jobs when parent job is resumed', async () => {
+            const parentJobId = 'parent-123';
+            const existingChildId = 'child-1';
+
+            // Parent job with 3 subcategories but only 1 child created
+            const parentJob = new Job({
+                id: parentJobId,
+                type: 'promotion-scraping',
+                status: 'running',
+                createdAt: new Date(),
+                metadata: {
+                    promotionId: 'PROMO123',
+                    category: 'Livros',
+                    maxClicks: 5,
+                    subcategories: ['SubA', 'SubB', 'SubC'],
+                    totalChildrenPlanned: 3,
+                    childJobIds: [existingChildId],
+                },
+            });
+
+            const existingChild = new Job({
+                id: existingChildId,
+                type: 'promotion-scraping',
+                status: 'completed',
+                createdAt: new Date(),
+                metadata: {
+                    promotionId: 'PROMO123',
+                    category: 'Livros',
+                    subcategory: 'SubA',
+                    parentJobId,
+                },
+            });
+
+            mockJobManager.getJob.mockImplementation((id: string) => {
+                if (id === parentJobId) return Promise.resolve(parentJob);
+                if (id === existingChildId) return Promise.resolve(existingChild);
+                return Promise.resolve(null);
+            });
+
+            const newJobs = [
+                new Job({
+                    id: 'child-2',
+                    type: 'promotion-scraping',
+                    status: 'pending',
+                    createdAt: new Date(),
+                    metadata: { subcategory: 'SubB' },
+                }),
+                new Job({
+                    id: 'child-3',
+                    type: 'promotion-scraping',
+                    status: 'pending',
+                    createdAt: new Date(),
+                    metadata: { subcategory: 'SubC' },
+                }),
+            ];
+
+            mockJobManager.createJobsBatch.mockResolvedValue(newJobs);
+            mockJobManager.updateJobMetadata.mockResolvedValue(true);
+
+            await useCase.resumeParentJob(parentJobId);
+
+            // Should create 2 missing jobs (SubB and SubC)
+            expect(mockJobManager.createJobsBatch).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            subcategory: 'SubB',
+                        }),
+                    }),
+                    expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            subcategory: 'SubC',
+                        }),
+                    }),
+                ])
+            );
+
+            // Should update parent metadata with all child IDs
+            expect(mockJobManager.updateJobMetadata).toHaveBeenCalledWith(
+                parentJobId,
+                expect.objectContaining({
+                    childJobIds: expect.arrayContaining([existingChildId, 'child-2', 'child-3']),
+                })
+            );
+        });
+
+        it('should not create jobs if all child jobs already exist', async () => {
+            const parentJobId = 'parent-456';
+
+            const parentJob = new Job({
+                id: parentJobId,
+                type: 'promotion-scraping',
+                status: 'running',
+                createdAt: new Date(),
+                metadata: {
+                    promotionId: 'PROMO456',
+                    category: 'Livros',
+                    maxClicks: 5,
+                    subcategories: ['SubA', 'SubB'],
+                    totalChildrenPlanned: 2,
+                    childJobIds: ['child-1', 'child-2'],
+                },
+            });
+
+            const child1 = new Job({
+                id: 'child-1',
+                type: 'promotion-scraping',
+                status: 'completed',
+                createdAt: new Date(),
+                metadata: { subcategory: 'SubA', parentJobId },
+            });
+
+            const child2 = new Job({
+                id: 'child-2',
+                type: 'promotion-scraping',
+                status: 'completed',
+                createdAt: new Date(),
+                metadata: { subcategory: 'SubB', parentJobId },
+            });
+
+            mockJobManager.getJob.mockImplementation((id: string) => {
+                if (id === parentJobId) return Promise.resolve(parentJob);
+                if (id === 'child-1') return Promise.resolve(child1);
+                if (id === 'child-2') return Promise.resolve(child2);
+                return Promise.resolve(null);
+            });
+
+            await useCase.resumeParentJob(parentJobId);
+
+            expect(mockJobManager.createJobsBatch).not.toHaveBeenCalled();
+            expect(mockJobManager.updateJobMetadata).not.toHaveBeenCalled();
+        });
+
+        it('should handle parent job not found', async () => {
+            mockJobManager.getJob.mockResolvedValue(null);
+
+            await useCase.resumeParentJob('non-existent');
+
+            expect(mockJobManager.createJobsBatch).not.toHaveBeenCalled();
+            expect(mockJobManager.updateJobMetadata).not.toHaveBeenCalled();
+        });
+
+        it('should handle parent job without metadata', async () => {
+            const parentJob = new Job({
+                id: 'parent-789',
+                type: 'promotion-scraping',
+                status: 'running',
+                createdAt: new Date(),
+                metadata: null,
+            });
+
+            mockJobManager.getJob.mockResolvedValue(parentJob);
+
+            await useCase.resumeParentJob('parent-789');
+
+            expect(mockJobManager.createJobsBatch).not.toHaveBeenCalled();
+        });
+    });
 });

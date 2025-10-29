@@ -34,7 +34,41 @@ async function start(): Promise<void> {
         });
 
         // Create and start the app
-        const { app, jobManager } = await createApp(config);
+        const { app, jobManager, keepAliveService, startPromotionScrapingUseCase } =
+            await createApp(config);
+
+        // CRITICAL: Pause keep-alive on startup (may be active from previous crash)
+        // Render does not respect graceful shutdown in case of OOM
+        try {
+            await keepAliveService.pause();
+            console.log('[Server] Keep-alive paused on startup (will activate when jobs start)');
+        } catch (error) {
+            console.warn('[Server] Error pausing keep-alive on startup:', error);
+        }
+
+        // Resume parent jobs that were interrupted by server crash
+        try {
+            const allJobs = await jobManager.listJobs();
+            const parentJobs = allJobs.filter(
+                (job) =>
+                    !job.metadata?.parentJobId && // Is parent job
+                    job.metadata?.subcategories && // Has subcategories persisted
+                    (job.isPending() || job.isRunning()) // Not completed
+            );
+
+            if (parentJobs.length > 0) {
+                console.log(`[Server] Found ${parentJobs.length} parent jobs to resume`);
+
+                for (const parentJob of parentJobs) {
+                    console.log(`[Server] Resuming parent job ${parentJob.id.substring(0, 8)}`);
+                    await startPromotionScrapingUseCase.resumeParentJob(parentJob.id);
+                }
+
+                console.log('[Server] All parent jobs resumed successfully');
+            }
+        } catch (error) {
+            console.error('[Server] Error resuming parent jobs:', error);
+        }
 
         const server = app.listen(port, () => {
             console.log(`[Server] Amazon Scraper API is running on port ${port}`);
@@ -45,6 +79,14 @@ async function start(): Promise<void> {
         // Graceful shutdown handler
         const gracefulShutdown = async (signal: string) => {
             console.log(`[Server] Received ${signal}, starting graceful shutdown...`);
+
+            // Pause keep-alive service (for SIGTERM/SIGINT signals)
+            try {
+                await keepAliveService.pause();
+                console.log('[Server] Keep-alive service paused');
+            } catch (error) {
+                console.error('[Server] Error pausing keep-alive:', error);
+            }
 
             // Stop accepting new connections
             server.close(() => {

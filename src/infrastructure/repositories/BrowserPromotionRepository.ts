@@ -115,12 +115,14 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
             MemoryMonitor.log('After closing browser (before GC)');
 
-            // CRITICAL: Force double GC to free external buffers from Puppeteer
-            // Single GC only clears V8 heap, external buffers (network/images) need 2 passes
+            // CRITICAL: Force triple GC to free external buffers from Puppeteer
+            // Triple GC ensures kernel-level memory release in memory-constrained environments
             if (global.gc) {
                 global.gc(); // First pass: V8 heap
-                await new Promise((resolve) => setTimeout(resolve, 500));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
                 global.gc(); // Second pass: External buffers
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+                global.gc(); // Third pass: Ensure kernel memory release
                 await new Promise((resolve) => setTimeout(resolve, 500));
             }
 
@@ -314,14 +316,16 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 MemoryMonitor.log('After closing browser - extractSubcategories (before GC)');
 
-                // CRITICAL: Force double GC to free external buffers from Puppeteer
-                // Single GC only clears V8 heap, external buffers need 2 passes
+                // CRITICAL: Force triple GC to free external buffers from Puppeteer
+                // Triple GC ensures kernel-level memory release in memory-constrained environments
                 if (global.gc) {
                     global.gc(); // First pass: V8 heap
-                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
                     global.gc(); // Second pass: External buffers
-                    console.log('[BrowserPromotionRepository] Double garbage collection triggered');
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    global.gc(); // Third pass: Ensure kernel memory release
+                    console.log('[BrowserPromotionRepository] Triple garbage collection triggered');
+                    await new Promise((resolve) => setTimeout(resolve, 500));
                 }
 
                 MemoryMonitor.log('After GC - extractSubcategories');
@@ -518,15 +522,32 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 // Try to find and click "Show More" button
                 // Amazon uses a specific ID for the pagination button
                 const clickResult = await page.evaluate(() => {
-                    // First, try the specific Amazon Show More button by ID
+                    // First, check if container is visible
                     // @ts-expect-error - DOM access in browser context
-                    const showMoreById = document.querySelector(
-                        '#showMore, #showMoreBtnContainer span'
-                    );
+                    const container = document.querySelector('#showMoreBtnContainer');
+                    if (container && container.classList.contains('hidden')) {
+                        // Container is hidden, button is not available
+                        return { found: false, text: null, method: null };
+                    }
+
+                    // Try the specific Amazon Show More button by ID
+                    // @ts-expect-error - DOM access in browser context
+                    const showMoreById = document.querySelector('#showMore');
                     if (showMoreById) {
-                        const buttonText = showMoreById.textContent?.trim();
-                        showMoreById.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        showMoreById.click();
+                        // Verify button is actually visible using offsetParent
+                        // (more reliable than getComputedStyle)
+                        const isVisible = (showMoreById as any).offsetParent !== null;
+                        if (!isVisible) {
+                            // Button exists but is not visible
+                            return { found: false, text: null, method: null };
+                        }
+
+                        const buttonText = (showMoreById as any).textContent?.trim();
+                        (showMoreById as any).scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                        });
+                        (showMoreById as any).click();
                         return { found: true, text: buttonText, method: 'byId' };
                     }
 

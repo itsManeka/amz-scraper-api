@@ -376,7 +376,8 @@ export class JobManager implements IJobManager {
                 // CRITICAL: Wait for OS to actually free memory
                 // Without this delay, external buffers from Puppeteer remain allocated
                 // causing 40-60MB memory leak per job
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+                // Increased from 1s to 2s to ensure kernel-level memory release
+                await new Promise((resolve) => setTimeout(resolve, 2000));
 
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} - memory stabilized`);
             } else {

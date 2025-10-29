@@ -38,6 +38,8 @@ export async function createApp(config: AppConfig): Promise<{
     app: Express;
     jobManager: JobManager;
     cache: HybridCache;
+    keepAliveService: UptimeRobotService;
+    startPromotionScrapingUseCase: StartPromotionScraping;
 }> {
     const app = express();
 
@@ -143,5 +145,5 @@ export async function createApp(config: AppConfig): Promise<{
         cleanupIntervalMinutes * 60 * 1000
     );
 
-    return { app, jobManager, cache };
+    return { app, jobManager, cache, keepAliveService, startPromotionScrapingUseCase };
 }

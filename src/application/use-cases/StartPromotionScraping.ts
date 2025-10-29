@@ -170,6 +170,18 @@ export class StartPromotionScraping {
                 `[StartPromotionScraping] Will create up to ${subcategories.length} child jobs for parent ${parentJobId} (${this.INITIAL_JOB_BATCH} initially, rest on-demand)`
             );
 
+            // CRITICAL: Persist complete list of subcategories in parent job metadata
+            // This ensures we can recreate missing jobs after crash
+            const subcategoryList = subcategories.map((s) => s || '');
+            await this.jobManager.updateJobMetadata(parentJobId, {
+                promotionId: request.promotionId,
+                category: request.category || undefined,
+                maxClicks: request.maxClicks,
+                subcategories: subcategoryList,
+                totalChildrenPlanned: subcategoryList.length,
+                childJobIds: [], // Will be populated as jobs are created
+            });
+
             // Prepare all child job configurations (but don't create them all yet)
             const allJobConfigs = subcategories.map((subcategory) => ({
                 type: 'promotion-scraping',
@@ -342,6 +354,97 @@ export class StartPromotionScraping {
                 }
             }
         });
+    }
+
+    /**
+     * Resumes a parent job by creating missing child jobs after server restart
+     * @param parentJobId - ID of the parent job to resume
+     */
+    async resumeParentJob(parentJobId: string): Promise<void> {
+        const parentJob = await this.jobManager.getJob(parentJobId);
+        if (!parentJob || !parentJob.metadata) {
+            console.error(`[StartPromotionScraping] Parent job ${parentJobId} not found`);
+            return;
+        }
+
+        const metadata = parentJob.metadata;
+        const subcategories = (metadata.subcategories as string[]) || [];
+        const existingChildJobIds = (metadata.childJobIds as string[]) || [];
+
+        console.log(
+            `[StartPromotionScraping] Resuming parent ${parentJobId.substring(0, 8)}: ${existingChildJobIds.length}/${subcategories.length} jobs already created`
+        );
+
+        // Identify which subcategories already have jobs
+        const existingJobs = await Promise.all(
+            existingChildJobIds.map((id) => this.jobManager.getJob(id))
+        );
+        const createdSubcategories = new Set(
+            existingJobs.filter((j) => j !== null).map((j) => j!.metadata?.subcategory || '')
+        );
+
+        // Find missing subcategories
+        const missingSubcategories = subcategories.filter((sub) => !createdSubcategories.has(sub));
+
+        if (missingSubcategories.length === 0) {
+            console.log(
+                '[StartPromotionScraping] All child jobs already created, resuming execution'
+            );
+            return;
+        }
+
+        console.log(
+            `[StartPromotionScraping] Creating ${missingSubcategories.length} missing child jobs`
+        );
+
+        // Create request object from metadata
+        const request = new ScrapeRequest(
+            metadata.promotionId as string,
+            (metadata.category as string) || null,
+            null,
+            (metadata.maxClicks as number) || 5
+        );
+
+        // Prepare job configurations for missing subcategories
+        const missingJobConfigs = missingSubcategories.map((subcategory) => ({
+            type: 'promotion-scraping',
+            executor: async () => {
+                return await this.promotionRepository.getPromotionById(
+                    request.promotionId,
+                    request.category || undefined,
+                    subcategory || undefined,
+                    request.maxClicks
+                );
+            },
+            metadata: {
+                promotionId: request.promotionId,
+                category: request.category || undefined,
+                subcategory: subcategory || undefined,
+                maxClicks: request.maxClicks,
+                parentJobId,
+            },
+        }));
+
+        // Create jobs in batches
+        for (let i = 0; i < missingJobConfigs.length; i += this.BATCH_PERSISTENCE_SIZE) {
+            const batch = missingJobConfigs.slice(i, i + this.BATCH_PERSISTENCE_SIZE);
+            const newJobs = await this.jobManager.createJobsBatch<Promotion>(batch);
+            existingChildJobIds.push(...newJobs.map((j) => j.id));
+
+            console.log(
+                `[StartPromotionScraping] Created batch ${Math.floor(i / this.BATCH_PERSISTENCE_SIZE) + 1} of ${Math.ceil(missingJobConfigs.length / this.BATCH_PERSISTENCE_SIZE)} (${batch.length} jobs)`
+            );
+        }
+
+        // Update parent metadata with all child job IDs
+        await this.jobManager.updateJobMetadata(parentJobId, {
+            ...metadata,
+            childJobIds: existingChildJobIds,
+        });
+
+        console.log(
+            `[StartPromotionScraping] Successfully resumed parent job ${parentJobId.substring(0, 8)} with ${existingChildJobIds.length} total child jobs`
+        );
     }
 
     /**
