@@ -289,6 +289,21 @@ describe('Job Entity', () => {
             expect(failed.error).toBe('Something went wrong');
             expect(failed.completedAt).toBeInstanceOf(Date);
         });
+
+        it('should create new job with metadata', () => {
+            const original = new Job({
+                id: 'job-123',
+                type: 'test',
+                status: 'pending',
+                createdAt: new Date(),
+            });
+
+            const withMeta = original.withMetadata({ key: 'value', count: 42 });
+
+            expect(original.metadata).toBeNull();
+            expect(withMeta.metadata).toEqual({ key: 'value', count: 42 });
+            expect(withMeta.id).toBe('job-123');
+        });
     });
 
     describe('toJSON', () => {
