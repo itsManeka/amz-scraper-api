@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.3](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.2...v1.5.3) (2025-10-29)
+
+
+### Bug Fixes
+
+* apply more memory logs and change keepalive activation to the parentjobs ([6c6271e](https://github.com/itsManeka/amz-scraper-api/commit/6c6271e18700806cee6564407093385e32268c54))
+
 ## [1.5.2](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.1...v1.5.2) (2025-10-29)
 
 
