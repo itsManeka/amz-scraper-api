@@ -4,6 +4,7 @@ import { StartPromotionScraping } from '../../application/use-cases/StartPromoti
 import { GetJobStatus } from '../../application/use-cases/GetJobStatus';
 import { GetCachedPromotion } from '../../application/use-cases/GetCachedPromotion';
 import { GetJobsByPromotionId } from '../../application/use-cases/GetJobsByPromotionId';
+import { CleanupPromotionJobs } from '../../application/use-cases/CleanupPromotionJobs';
 import { Job } from '../../domain/entities/Job';
 
 describe('PromotionController.getJobsByPromotionId', () => {
@@ -12,6 +13,7 @@ describe('PromotionController.getJobsByPromotionId', () => {
     let mockGetJobStatusUseCase: jest.Mocked<GetJobStatus>;
     let mockGetCachedPromotionUseCase: jest.Mocked<GetCachedPromotion>;
     let mockGetJobsByPromotionIdUseCase: jest.Mocked<GetJobsByPromotionId>;
+    let mockCleanupPromotionJobsUseCase: jest.Mocked<CleanupPromotionJobs>;
     let req: Partial<Request>;
     let res: Partial<Response>;
     let next: NextFunction;
@@ -33,11 +35,16 @@ describe('PromotionController.getJobsByPromotionId', () => {
             execute: jest.fn(),
         } as any;
 
+        mockCleanupPromotionJobsUseCase = {
+            execute: jest.fn(),
+        } as any;
+
         controller = new PromotionController(
             mockStartPromotionScrapingUseCase,
             mockGetJobStatusUseCase,
             mockGetCachedPromotionUseCase,
-            mockGetJobsByPromotionIdUseCase
+            mockGetJobsByPromotionIdUseCase,
+            mockCleanupPromotionJobsUseCase
         );
 
         req = {

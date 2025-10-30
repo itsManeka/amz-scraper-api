@@ -21,8 +21,6 @@ import { MemoryMonitor } from '../../infrastructure/monitoring/MemoryMonitor';
 export class StartPromotionScraping {
     private readonly MAX_CHILD_JOBS = 50; // All subcategories - safe with MAX_CONCURRENT_JOBS=1 and GC
     private readonly BATCH_PERSISTENCE_SIZE = 5; // Reduced from 10 for better memory management
-    private readonly INITIAL_JOB_BATCH = 10; // Create 10 jobs initially, rest on-demand
-    private readonly MIN_PENDING_JOBS = 3; // Create more jobs when pending count drops below this
 
     constructor(
         private readonly promotionRepository: IPromotionRepository,
@@ -113,17 +111,18 @@ export class StartPromotionScraping {
         const parentJob: Job<Promotion> = await this.jobManager.createJob<Promotion>(
             'promotion-scraping-orchestrator',
             async (): Promise<Promotion> => {
-                // Parent job executor: wait for all children and aggregate results
-                return await this.aggregateChildResults(parentJob.id);
+                // CRITICAL: Aguardar criação dos child jobs ANTES de completar
+                // Isso garante que keep-alive seja mantido e bot veja todos os jobs
+                // Retorna os dados reais da promoção extraídos durante a descoberta de subcategorias
+                return await this.spawnChildJobs(parentJob.id, request);
+
+                // Parent job completa imediatamente APÓS criação dos childs
+                // NÃO aguarda childs completarem (pode demorar horas)
+                // Bot consulta child jobs individualmente
+                // Retorna dados reais da promoção (descrição, datas, desconto) mas ASINs vazios
             },
             parentMetadata
         );
-
-        // Extract subcategories (this operation is synchronous for the parent job creation,
-        // but the actual extraction happens in a spawned async operation)
-        this.spawnChildJobs(parentJob.id, request).catch((error) => {
-            console.error('[StartPromotionScraping] Error spawning child jobs:', error);
-        });
 
         console.log(
             `[StartPromotionScraping] Created parent job ${parentJob.id} for promotion ${request.promotionId}`
@@ -133,21 +132,26 @@ export class StartPromotionScraping {
     }
 
     /**
-     * Spawns child jobs for each subcategory (with lazy creation for memory efficiency)
+     * Spawns child jobs for each subcategory (all jobs created immediately)
+     * Returns the promotion data extracted during subcategory discovery
      */
-    private async spawnChildJobs(parentJobId: string, request: ScrapeRequest): Promise<void> {
+    private async spawnChildJobs(parentJobId: string, request: ScrapeRequest): Promise<Promotion> {
         try {
             // Extract subcategories if repository supports it
             let subcategories: string[] = [];
+            let promotionData: Promotion | null = null;
 
             if (
                 this.promotionRepository instanceof BrowserPromotionRepository &&
                 request.category
             ) {
-                subcategories = await this.promotionRepository.extractSubcategories(
-                    request.promotionId,
-                    request.category
-                );
+                const { subcategories: extractedSubcategories, promotion } =
+                    await this.promotionRepository.extractSubcategories(
+                        request.promotionId,
+                        request.category
+                    );
+                subcategories = extractedSubcategories;
+                promotionData = promotion;
             }
 
             // If no subcategories found, create a single job with the category
@@ -167,7 +171,7 @@ export class StartPromotionScraping {
             }
 
             console.log(
-                `[StartPromotionScraping] Will create up to ${subcategories.length} child jobs for parent ${parentJobId} (${this.INITIAL_JOB_BATCH} initially, rest on-demand)`
+                `[StartPromotionScraping] Will create ${subcategories.length} child jobs for parent ${parentJobId}`
             );
 
             // CRITICAL: Persist complete list of subcategories in parent job metadata
@@ -182,7 +186,7 @@ export class StartPromotionScraping {
                 childJobIds: [], // Will be populated as jobs are created
             });
 
-            // Prepare all child job configurations (but don't create them all yet)
+            // Prepare all child job configurations
             const allJobConfigs = subcategories.map((subcategory) => ({
                 type: 'promotion-scraping',
                 executor: async () => {
@@ -202,12 +206,9 @@ export class StartPromotionScraping {
                 },
             }));
 
-            // Use lazy creation if we have many jobs (>15), otherwise create all at once
-            if (allJobConfigs.length > 15) {
-                await this.createJobsLazily(parentJobId, allJobConfigs, request);
-            } else {
-                await this.createAllJobsImmediately(parentJobId, allJobConfigs, request);
-            }
+            // Create all jobs immediately (no lazy loading)
+            // Bot needs complete list on first query
+            await this.createAllJobsImmediately(parentJobId, allJobConfigs, request);
 
             MemoryMonitor.log('After job creation setup (before GC)');
 
@@ -223,13 +224,26 @@ export class StartPromotionScraping {
 
             // Give GC time to clean up before execution starts
             await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            // Return the promotion data extracted during subcategory discovery
+            // If no data was extracted, return a placeholder
+            return (
+                promotionData ||
+                new Promotion({
+                    id: request.promotionId,
+                    description: 'Promotion data not available',
+                    details: '',
+                    discountType: 'percentage',
+                    discountValue: 0,
+                    startDate: null,
+                    endDate: null,
+                    asins: [],
+                })
+            );
         } catch (error) {
             console.error('[StartPromotionScraping] Failed to spawn child jobs:', error);
-            // Update parent job with error
-            const parentJob = await this.jobManager.getJob(parentJobId);
-            if (parentJob) {
-                throw error; // Let the parent job executor catch and handle the error
-            }
+            // Return error promotion
+            throw error; // Let the parent job executor catch and handle the error
         }
     }
 
@@ -275,84 +289,6 @@ export class StartPromotionScraping {
             subcategory: undefined,
             maxClicks: request.maxClicks,
             childJobIds,
-        });
-    }
-
-    /**
-     * Creates jobs lazily: initial batch + more as jobs complete
-     */
-    private async createJobsLazily(
-        parentJobId: string,
-        allJobConfigs: Array<{
-            type: string;
-            executor: () => Promise<Promotion>;
-            metadata: any;
-        }>,
-        request: ScrapeRequest
-    ): Promise<void> {
-        const createdJobIds: string[] = [];
-        let nextConfigIndex = 0;
-
-        // Helper to create next batch of jobs
-        const createNextBatch = async (count: number): Promise<void> => {
-            const configsToCreate = allJobConfigs.slice(nextConfigIndex, nextConfigIndex + count);
-            if (configsToCreate.length === 0) return;
-
-            console.log(
-                `[StartPromotionScraping] Creating next batch: ${configsToCreate.length} jobs (${nextConfigIndex + 1}-${nextConfigIndex + configsToCreate.length} of ${allJobConfigs.length})`
-            );
-
-            const newJobs = await this.jobManager.createJobsBatch<Promotion>(configsToCreate);
-            const newJobIds = newJobs.map((j) => j.id);
-            createdJobIds.push(...newJobIds);
-            nextConfigIndex += configsToCreate.length;
-
-            // Update parent metadata with all created job IDs so far
-            await this.jobManager.updateJobMetadata(parentJobId, {
-                promotionId: request.promotionId,
-                category: request.category || undefined,
-                subcategory: undefined,
-                maxClicks: request.maxClicks,
-                childJobIds: createdJobIds,
-            });
-        };
-
-        // Create initial batch
-        await createNextBatch(this.INITIAL_JOB_BATCH);
-        console.log(
-            `[StartPromotionScraping] Created initial batch of ${this.INITIAL_JOB_BATCH} jobs, will create remaining ${allJobConfigs.length - this.INITIAL_JOB_BATCH} on-demand`
-        );
-
-        // Register callback to create more jobs as they complete
-        this.jobManager.registerJobCompletionCallback(parentJobId, async (jobId, success) => {
-            // Count how many jobs are still pending
-            const allJobs = await this.jobManager.findJobsByPromotionId(request.promotionId);
-            const childJobs = allJobs.filter((j) => j.metadata?.parentJobId === parentJobId);
-            const pendingCount = childJobs.filter((j) => j.isPending()).length;
-
-            console.log(
-                `[StartPromotionScraping] Child job ${jobId.substring(0, 8)} completed (success=${success}), pending jobs: ${pendingCount}, remaining configs: ${allJobConfigs.length - nextConfigIndex}`
-            );
-
-            // If we're running low on pending jobs and have more configs, create more
-            if (pendingCount < this.MIN_PENDING_JOBS && nextConfigIndex < allJobConfigs.length) {
-                const batchSize = Math.min(
-                    this.BATCH_PERSISTENCE_SIZE,
-                    allJobConfigs.length - nextConfigIndex
-                );
-                await createNextBatch(batchSize);
-            }
-
-            // If all jobs are done, clean up callback
-            if (nextConfigIndex >= allJobConfigs.length && pendingCount === 0) {
-                const runningCount = childJobs.filter((j) => j.isRunning()).length;
-                if (runningCount === 0) {
-                    console.log(
-                        `[StartPromotionScraping] All child jobs completed for parent ${parentJobId}, unregistering callbacks`
-                    );
-                    this.jobManager.unregisterJobCompletionCallbacks(parentJobId);
-                }
-            }
         });
     }
 
@@ -445,65 +381,5 @@ export class StartPromotionScraping {
         console.log(
             `[StartPromotionScraping] Successfully resumed parent job ${parentJobId.substring(0, 8)} with ${existingChildJobIds.length} total child jobs`
         );
-    }
-
-    /**
-     * Aggregates results from all child jobs
-     */
-    private async aggregateChildResults(parentJobId: string): Promise<Promotion> {
-        // Wait for child jobs to complete
-        const maxWaitTime = 600000; // 10 minutes
-        const checkInterval = 5000; // 5 seconds
-        let elapsed = 0;
-
-        while (elapsed < maxWaitTime) {
-            const parentJob = await this.jobManager.getJob(parentJobId);
-            if (!parentJob || !parentJob.metadata?.childJobIds) {
-                // Child jobs not yet created, wait
-                await new Promise((resolve) => setTimeout(resolve, checkInterval));
-                elapsed += checkInterval;
-                continue;
-            }
-
-            const childJobIds = parentJob.metadata.childJobIds as string[];
-            const childJobs = await Promise.all(
-                childJobIds.map((id) => this.jobManager.getJob<Promotion>(id))
-            );
-
-            // Check if all children are completed
-            const allCompleted = childJobs.every((job) => job?.isCompleted());
-
-            if (allCompleted) {
-                // Aggregate ASINs from all successful child jobs
-                const allAsins = new Set<string>();
-                let aggregatedPromotion: Promotion | null = null;
-
-                for (const childJob of childJobs) {
-                    if (childJob && childJob.status === 'completed' && childJob.result) {
-                        if (!aggregatedPromotion) {
-                            aggregatedPromotion = childJob.result;
-                        }
-                        // Add all ASINs from this child
-                        childJob.result.asins.forEach((asin) => allAsins.add(asin));
-                    }
-                }
-
-                if (!aggregatedPromotion) {
-                    throw new Error('All child jobs failed');
-                }
-
-                // Create final aggregated promotion with all ASINs
-                return new Promotion({
-                    ...aggregatedPromotion,
-                    asins: Array.from(allAsins),
-                });
-            }
-
-            // Wait before next check
-            await new Promise((resolve) => setTimeout(resolve, checkInterval));
-            elapsed += checkInterval;
-        }
-
-        throw new Error('Timeout waiting for child jobs to complete');
     }
 }

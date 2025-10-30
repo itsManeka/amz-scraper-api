@@ -11,6 +11,7 @@ import { StartPromotionScraping } from '../application/use-cases/StartPromotionS
 import { GetJobStatus } from '../application/use-cases/GetJobStatus';
 import { GetCachedPromotion } from '../application/use-cases/GetCachedPromotion';
 import { GetJobsByPromotionId } from '../application/use-cases/GetJobsByPromotionId';
+import { CleanupPromotionJobs } from '../application/use-cases/CleanupPromotionJobs';
 import { ProductRepository } from '../infrastructure/repositories/ProductRepository';
 import { BrowserPromotionRepository } from '../infrastructure/repositories/BrowserPromotionRepository';
 import { HttpClient } from '../infrastructure/http/HttpClient';
@@ -77,6 +78,7 @@ export async function createApp(config: AppConfig): Promise<{
     const getJobStatusUseCase = new GetJobStatus(jobManager);
     const getCachedPromotionUseCase = new GetCachedPromotion(cache);
     const getJobsByPromotionIdUseCase = new GetJobsByPromotionId(jobManager);
+    const cleanupPromotionJobsUseCase = new CleanupPromotionJobs(jobManager);
 
     // Initialize controllers
     const productController = new ProductController(
@@ -87,7 +89,8 @@ export async function createApp(config: AppConfig): Promise<{
         startPromotionScrapingUseCase,
         getJobStatusUseCase,
         getCachedPromotionUseCase,
-        getJobsByPromotionIdUseCase
+        getJobsByPromotionIdUseCase,
+        cleanupPromotionJobsUseCase
     );
     const healthController = new HealthController(jobManager);
 

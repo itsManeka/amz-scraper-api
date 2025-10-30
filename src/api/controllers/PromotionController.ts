@@ -3,6 +3,7 @@ import { StartPromotionScraping } from '../../application/use-cases/StartPromoti
 import { GetJobStatus } from '../../application/use-cases/GetJobStatus';
 import { GetCachedPromotion } from '../../application/use-cases/GetCachedPromotion';
 import { GetJobsByPromotionId } from '../../application/use-cases/GetJobsByPromotionId';
+import { CleanupPromotionJobs } from '../../application/use-cases/CleanupPromotionJobs';
 import { ScrapeRequest } from '../../domain/entities/ScrapeRequest';
 import { Promotion } from '../../domain/entities/Promotion';
 
@@ -14,7 +15,8 @@ export class PromotionController {
         private readonly startPromotionScrapingUseCase: StartPromotionScraping,
         private readonly getJobStatusUseCase: GetJobStatus,
         private readonly getCachedPromotionUseCase: GetCachedPromotion,
-        private readonly getJobsByPromotionIdUseCase: GetJobsByPromotionId
+        private readonly getJobsByPromotionIdUseCase: GetJobsByPromotionId,
+        private readonly cleanupPromotionJobsUseCase: CleanupPromotionJobs
     ) {}
 
     /**
@@ -181,6 +183,25 @@ export class PromotionController {
                     progress: job.progress,
                     error: job.error,
                 })),
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * DELETE /api/promotions/jobs/by-promotion/:promotionId/cleanup
+     * Cleans up child jobs while preserving parent job
+     */
+    async cleanupPromotionJobs(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { promotionId } = req.params;
+
+            const result = await this.cleanupPromotionJobsUseCase.execute(promotionId);
+
+            res.json({
+                message: 'Child jobs cleaned up successfully',
+                ...result,
             });
         } catch (error) {
             next(error);

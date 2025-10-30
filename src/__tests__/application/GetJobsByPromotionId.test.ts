@@ -14,6 +14,7 @@ describe('GetJobsByPromotionId', () => {
             findJobByPromotion: jest.fn(),
             listJobs: jest.fn(),
             cancelJob: jest.fn(),
+            deleteJob: jest.fn(),
             clearCompletedJobs: jest.fn(),
             getStats: jest.fn(),
             updateJobMetadata: jest.fn(),

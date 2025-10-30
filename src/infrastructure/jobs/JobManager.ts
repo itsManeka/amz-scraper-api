@@ -204,14 +204,44 @@ export class JobManager implements IJobManager {
     }
 
     /**
+     * Deletes a job from memory and storage
+     * Used for manual cleanup of completed jobs
+     */
+    async deleteJob(jobId: string): Promise<boolean> {
+        const job = this.jobs.get(jobId);
+        if (!job) {
+            return false;
+        }
+
+        // Remove from memory
+        this.jobs.delete(jobId);
+
+        // Remove from storage
+        if (this.storage) {
+            await this.storage.delete(StorageKeys.jobKey(jobId));
+        }
+
+        return true;
+    }
+
+    /**
      * Clears completed jobs
+     * NEVER clears parent jobs (jobs without parentJobId) - they serve as permanent flags
      */
     async clearCompletedJobs(olderThanMinutes: number = 60): Promise<void> {
         const cutoffTime = new Date(Date.now() - olderThanMinutes * 60 * 1000);
         const jobsToDelete: string[] = [];
 
         for (const [jobId, job] of this.jobs.entries()) {
-            if (job.isCompleted() && job.completedAt && job.completedAt < cutoffTime) {
+            // CRITICAL: NEVER clear parent jobs (they serve as "promotion already scraped" flags)
+            const isParentJob = !job.metadata?.parentJobId;
+
+            if (
+                job.isCompleted() &&
+                job.completedAt &&
+                job.completedAt < cutoffTime &&
+                !isParentJob
+            ) {
                 jobsToDelete.push(jobId);
             }
         }
@@ -223,7 +253,7 @@ export class JobManager implements IJobManager {
             }
         }
 
-        console.log(`[JobManager] Cleared ${jobsToDelete.length} completed jobs`);
+        console.log(`[JobManager] Cleared ${jobsToDelete.length} completed child jobs`);
     }
 
     /**
@@ -382,13 +412,6 @@ export class JobManager implements IJobManager {
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} - memory stabilized`);
             } else {
                 MemoryMonitor.log(`Job ${jobId.substring(0, 8)} completed (no GC available)`);
-            }
-
-            // Auto-clean completed child jobs to prevent memory buildup
-            // Only clean if this is a child job (has parentJobId) and it's completed
-            if (job.metadata?.parentJobId && job.isCompleted()) {
-                // Clean jobs older than 5 minutes to keep recent history
-                await this.clearCompletedJobs(5);
             }
 
             // Pause keep-alive only when NO jobs are running AND no jobs are pending

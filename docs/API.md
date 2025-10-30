@@ -481,17 +481,72 @@ GET /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX
 
 ---
 
+#### `DELETE /api/promotions/jobs/by-promotion/:promotionId/cleanup`
+
+Cleans up child jobs for a promotion while preserving the parent job. This endpoint is intended to be called by the bot after all child jobs have been processed to prevent database inflation.
+
+**Purpose:**
+- Deletes **all child jobs** (regardless of status) for a given promotion
+- Preserves the parent job as a permanent flag to prevent re-scraping the same promotion
+- Helps maintain database size by removing processed job data
+
+**Parameters:**
+- `promotionId` (path, required): Amazon promotion ID
+
+**Example:**
+```
+DELETE /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX/cleanup
+```
+
+**Response:**
+```json
+{
+  "promotionId": "A2P3X1AN29HWHX",
+  "deletedChildJobs": 18,
+  "parentJobPreserved": true
+}
+```
+
+**Behavior:**
+- Deletes **all child jobs** (jobs with `parentJobId` metadata), regardless of their status (pending, running, completed, or failed)
+- Parent job is NEVER deleted (serves as "already scraped" flag)
+- Jobs are removed from both memory and persistent storage
+
+**Use Case:**
+The bot workflow typically follows this pattern:
+1. Bot queries `/api/promotions/jobs/by-promotion/:promotionId` to get list of child jobs
+2. Bot schedules monitoring for each child job
+3. Bot queries each child job via `/api/promotions/jobs/:jobId` until completed
+4. Bot extracts ASINs from each completed child job
+5. Bot calls this cleanup endpoint to remove child jobs from database
+6. Parent job remains in database to prevent re-scraping
+
+**Error Responses:**
+- `400 Bad Request`: Invalid promotion ID
+- `500 Internal Server Error`: Server error
+
+---
+
 ### Multi-Job Pattern and Limitations
 
 #### Overview
 
 When scraping a promotion **with a category but without specifying a subcategory**, the API automatically uses a **multi-job pattern** to handle the large number of products more efficiently:
 
-1. **Parent Job**: An orchestrator job (`promotion-scraping-orchestrator`) is created
-2. **Subcategory Discovery**: The system automatically discovers available subcategories for the specified category
-3. **Child Jobs**: One child job (`promotion-scraping`) is created for each subcategory
+1. **Parent Job**: An orchestrator job (`promotion-scraping-orchestrator`) is created and immediately extracts basic promotion data (description, dates, discount info) during subcategory discovery
+2. **Subcategory Discovery**: The system automatically discovers available subcategories for the specified category and extracts real promotion details
+3. **Child Jobs**: One child job (`promotion-scraping`) is created for each subcategory, with all jobs created immediately (no lazy loading)
 4. **Independent Execution**: Each child job runs independently with its own browser instance
-5. **Aggregation**: The parent job waits for all children and aggregates results
+5. **Parent Job Completion**: The parent job completes immediately after all child jobs are created, **returning real promotion data** (description, dates, discount, but empty ASINs array)
+6. **Child Job Execution**: Child jobs execute independently and may take several minutes to hours to complete, each returning their own ASINs
+
+**Important Notes:**
+- The parent job returns **real promotion data** (description, dates, discount) extracted during subcategory discovery
+- The parent job's promotion data includes an **empty ASINs array** since products are scraped by child jobs
+- All child jobs are created and persisted immediately before the parent job completes
+- The bot queries `/api/promotions/jobs/by-promotion/:promotionId` once to get the complete list of child jobs
+- Child jobs execute asynchronously and can be monitored individually via `/api/promotions/jobs/:jobId`
+- Parent job is never automatically deleted and serves as a permanent "already scraped" flag
 
 #### Throttling and Limits
 
@@ -539,6 +594,7 @@ The system implements several mechanisms to ensure job reliability:
 3. **Check Individual Jobs**: Use `GET /api/promotions/jobs/:jobId` to check status of specific child jobs
 4. **Wait for Completion**: Allow sufficient time (10-30 minutes) for all jobs to complete
 5. **Handle Partial Results**: Check `overallStatus` field - `partial` means some jobs succeeded
+6. **Cleanup After Processing**: Use `DELETE /api/promotions/jobs/by-promotion/:promotionId/cleanup` to remove child jobs after extracting data
 
 #### Example Workflow
 
@@ -563,21 +619,48 @@ POST /api/products/batch
 # 2. Monitor all jobs for the promotion
 GET /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX
 
-# Response shows parent + children
+# Response shows parent + children (all created immediately)
 {
   "promotionId": "A2P3X1AN29HWHX",
   "overallStatus": "running",
   "summary": {
     "total": 21,
-    "pending": 5,
-    "running": 2,
-    "completed": 14,
+    "pending": 15,
+    "running": 1,
+    "completed": 5,
     "failed": 0
   },
-  "jobs": [...]
+  "jobs": [
+    {
+      "jobId": "parent-job-id",
+      "type": "promotion-scraping-orchestrator",
+      "status": "completed",
+      "result": {
+        "id": "A2P3X1AN29HWHX",
+        "description": "20% off em Livros de Halloween",
+        "details": "...",
+        "discountType": "percentage",
+        "discountValue": 20,
+        "startDate": "2025-10-24T09:00:00-03:00",
+        "endDate": "2025-10-31T23:59:59-03:00",
+        "asins": []
+      }
+    },
+    // ... child jobs ...
+  ]
 }
 
-# 3. Wait and check again until overallStatus is "completed" or "partial"
+# 3. Wait and check individual child jobs until all complete
+GET /api/promotions/jobs/:childJobId
+
+# 4. After extracting data from all child jobs, cleanup
+DELETE /api/promotions/jobs/by-promotion/A2P3X1AN29HWHX/cleanup
+
+# Response
+{
+  "message": "Child jobs cleaned up successfully",
+  "deletedCount": 20
+}
 ```
 
 #### Troubleshooting

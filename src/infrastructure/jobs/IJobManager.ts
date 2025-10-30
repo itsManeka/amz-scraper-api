@@ -63,6 +63,14 @@ export interface IJobManager {
     cancelJob(jobId: string): Promise<boolean>;
 
     /**
+     * Deletes a job from memory and storage
+     * Used for manual cleanup of completed jobs
+     * @param jobId - Job ID
+     * @returns true if deleted, false if not found
+     */
+    deleteJob(jobId: string): Promise<boolean>;
+
+    /**
      * Clears completed jobs
      * @param olderThanMinutes - Clear jobs older than specified minutes
      */

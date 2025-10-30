@@ -14,6 +14,9 @@
 
 - ✅ **Product Verification**: Extract promotional codes from product pages using Cheerio + Axios
 - ✅ **Promotion Scraping**: Full promotion page scraping with Puppeteer (headless browser)
+- ✅ **Multi-Job Pattern**: Automatically creates child jobs for each subcategory to prevent memory issues
+- ✅ **Job Persistence**: All jobs persisted to PostgreSQL for recovery after server restarts
+- ✅ **Manual Cleanup**: Endpoint to clean up all child jobs while preserving parent job as "already scraped" flag
 - ✅ **API Key Authentication**: Secure your API with configurable API keys
 - ✅ **Category/Subcategory Filtering**: Apply Amazon's native filters to narrow results
 - ✅ **Auto "Show More" Clicking**: Automatically loads all products by clicking pagination buttons
@@ -96,9 +99,11 @@ GET /api/products/:asin
 
 ### Promotion Scraping
 ```
-POST /api/promotions/scrape
-GET  /api/promotions/jobs/:jobId
-GET  /api/promotions/:promotionId
+POST   /api/promotions/scrape
+GET    /api/promotions/jobs/:jobId
+GET    /api/promotions/jobs/by-promotion/:promotionId
+DELETE /api/promotions/jobs/by-promotion/:promotionId/cleanup
+GET    /api/promotions/:promotionId
 ```
 
 See [API Documentation](docs/API.md) for detailed endpoint specifications.
@@ -356,8 +361,6 @@ npm run test:coverage
 # Watch mode for development
 npm run test:watch
 ```
-
-Current test coverage: **70%+**
 
 ## CI/CD Pipeline
 

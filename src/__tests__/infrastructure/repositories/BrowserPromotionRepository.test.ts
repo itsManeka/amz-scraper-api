@@ -469,4 +469,141 @@ describe('BrowserPromotionRepository', () => {
             jest.useRealTimers();
         }, 30000);
     });
+
+    describe('extractSubcategories', () => {
+        it('should extract subcategories successfully', async () => {
+            const mockHtml = `
+                <html>
+                    <head><title>Test Promotion</title></head>
+                    <body>
+                        <div id="promotionTitle"><h1><span>20% off em Livros</span></h1></div>
+                        <div id="promotionSchedule"><span>Válido de 01/01/2024 até 31/12/2024</span></div>
+                        <div id="department">
+                            <div name="subCategoryList">
+                                <span data-name="departmentListSubCategoryItemText" data-value="Literatura e Ficção">Literatura e Ficção</span>
+                                <span data-name="departmentListSubCategoryItemText" data-value="Romance">Romance</span>
+                                <span data-name="departmentListSubCategoryItemText" data-value="Suspense">Suspense</span>
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            `;
+
+            mockPage.content.mockResolvedValue(mockHtml);
+            mockPage.evaluate.mockResolvedValue(['Literatura e Ficção', 'Romance', 'Suspense']);
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(3);
+            expect(result.subcategories).toContain('Literatura e Ficção');
+            expect(result.subcategories).toContain('Romance');
+            expect(result.subcategories).toContain('Suspense');
+            expect(result.promotion).toBeDefined();
+            expect(result.promotion.id).toBe('ABC123');
+            expect(result.promotion.description).toContain('20%');
+            expect(mockBrowser.close).toHaveBeenCalled();
+        }, 10000);
+
+        it('should return empty subcategories when none found', async () => {
+            const mockHtml = `
+                <html>
+                    <body>
+                        <div id="promotionTitle"><h1><span>10% off</span></h1></div>
+                        <div id="department"></div>
+                    </body>
+                </html>
+            `;
+
+            mockPage.content.mockResolvedValue(mockHtml);
+            mockPage.evaluate.mockResolvedValue([]);
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(0);
+            expect(result.promotion).toBeDefined();
+            expect(mockBrowser.close).toHaveBeenCalled();
+        }, 10000);
+
+        it('should filter out invalid subcategory texts', async () => {
+            const mockHtml = `
+                <html>
+                    <body>
+                        <div id="promotionTitle"><h1><span>Test Promotion</span></h1></div>
+                    </body>
+                </html>
+            `;
+
+            mockPage.content.mockResolvedValue(mockHtml);
+            mockPage.evaluate.mockResolvedValue([
+                'Literatura e Ficção', // Valid
+                'ver mais', // Should be filtered
+                'mostrar', // Should be filtered
+                '123', // Should be filtered (pure number)
+                'Departamento', // Should be filtered
+                'qualquer departamento', // Should be filtered
+                'Romance', // Valid
+                'ab', // Should be filtered (too short)
+            ]);
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(2);
+            expect(result.subcategories).toContain('Literatura e Ficção');
+            expect(result.subcategories).toContain('Romance');
+            expect(mockBrowser.close).toHaveBeenCalled();
+        }, 10000);
+
+        it('should retry on detached frame error', async () => {
+            const mockHtml = `
+                <html>
+                    <body>
+                        <div id="promotionTitle"><h1><span>Test Promotion</span></h1></div>
+                    </body>
+                </html>
+            `;
+
+            // First attempt fails with detached error, second succeeds
+            let attemptCount = 0;
+            mockPage.evaluate.mockImplementation(() => {
+                attemptCount++;
+                if (attemptCount === 1) {
+                    throw new Error(
+                        'Execution context was destroyed, most likely because of a detached'
+                    );
+                }
+                return Promise.resolve(['Literatura e Ficção']);
+            });
+            mockPage.content.mockResolvedValue(mockHtml);
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(1);
+            expect(result.subcategories).toContain('Literatura e Ficção');
+            expect(console.warn).toHaveBeenCalledWith(
+                expect.stringContaining('Frame detached error')
+            );
+            expect(mockBrowser.close).toHaveBeenCalledTimes(2); // Once for failed attempt, once for success
+        }, 10000);
+
+        it('should return fallback promotion on error after all retries', async () => {
+            mockPage.goto.mockRejectedValue(new Error('Navigation failed'));
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(0);
+            expect(result.promotion).toBeDefined();
+            expect(result.promotion.description).toContain('Scraping');
+            expect(mockBrowser.close).toHaveBeenCalled();
+        }, 10000);
+
+        it('should handle non-detached errors without retry beyond max', async () => {
+            mockPage.goto.mockRejectedValue(new Error('Some other error'));
+
+            const result = await repository.extractSubcategories('ABC123', 'Livros');
+
+            expect(result.subcategories).toHaveLength(0);
+            expect(result.promotion).toBeDefined();
+            expect(mockBrowser.close).toHaveBeenCalledTimes(1); // Only 1 call since non-detached error doesn't trigger retry
+        }, 15000);
+    });
 });

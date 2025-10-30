@@ -123,7 +123,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 global.gc(); // Second pass: External buffers
                 await new Promise((resolve) => setTimeout(resolve, 1000));
                 global.gc(); // Third pass: Ensure kernel memory release
-                await new Promise((resolve) => setTimeout(resolve, 500));
+                await new Promise((resolve) => setTimeout(resolve, 1000));
             }
 
             MemoryMonitor.log('After GC');
@@ -189,12 +189,15 @@ export class BrowserPromotionRepository implements IPromotionRepository {
     }
 
     /**
-     * Extracts available subcategories from the promotion page
+     * Extracts available subcategories and basic promotion data from the promotion page
      * @param promotionId - The promotion ID
      * @param productCategory - Category filter
-     * @returns Promise resolving to array of subcategory names
+     * @returns Promise resolving to object with subcategories and basic promotion data
      */
-    async extractSubcategories(promotionId: string, productCategory: string): Promise<string[]> {
+    async extractSubcategories(
+        promotionId: string,
+        productCategory: string
+    ): Promise<{ subcategories: string[]; promotion: Promotion }> {
         let browser: Browser | null = null;
         let retries = 0;
         const maxRetries = 2;
@@ -242,6 +245,15 @@ export class BrowserPromotionRepository implements IPromotionRepository {
 
                 // Wait for content to load
                 await this.waitForPromotionContent(page);
+
+                // Get the page HTML
+                const html = await page.content();
+
+                // Extract basic promotion data
+                const { title, details } = this.parser.parsePromotionDetails(html);
+                const { type: discountType, value: discountValue } =
+                    this.parser.parseDiscountInfo(details);
+                const { startDate, endDate } = this.parser.parseDates(details);
 
                 // Extract subcategories from sidebar filters
                 // Using specific selectors based on Amazon's promotion page structure
@@ -325,7 +337,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                     global.gc(); // Third pass: Ensure kernel memory release
                     console.log('[BrowserPromotionRepository] Triple garbage collection triggered');
-                    await new Promise((resolve) => setTimeout(resolve, 500));
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
                 }
 
                 MemoryMonitor.log('After GC - extractSubcategories');
@@ -353,7 +365,19 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                     `[BrowserPromotionRepository] Found ${filtered.length} subcategories: ${filtered.join(', ')}`
                 );
 
-                return filtered;
+                // Create basic promotion entity
+                const promotion = new Promotion({
+                    id: promotionId,
+                    description: title,
+                    details,
+                    discountType,
+                    discountValue,
+                    startDate,
+                    endDate,
+                    asins: [], // No products for parent job
+                });
+
+                return { subcategories: filtered, promotion };
             } catch (error) {
                 if (browser) {
                     try {
@@ -386,14 +410,38 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                     '[BrowserPromotionRepository] Error extracting subcategories:',
                     error
                 );
-                // Return empty array on error - will proceed with no subcategories
-                return [];
+                // Return empty result on error - will proceed with no subcategories
+                return {
+                    subcategories: [],
+                    promotion: new Promotion({
+                        id: promotionId,
+                        description: 'Scraping in progress',
+                        details: '',
+                        discountType: 'percentage',
+                        discountValue: 0,
+                        startDate: null,
+                        endDate: null,
+                        asins: [],
+                    }),
+                };
             }
         }
 
         // If we reach here, all retries failed
         console.warn('[BrowserPromotionRepository] All attempts to extract subcategories failed');
-        return [];
+        return {
+            subcategories: [],
+            promotion: new Promotion({
+                id: promotionId,
+                description: 'Scraping failed',
+                details: '',
+                discountType: 'percentage',
+                discountValue: 0,
+                startDate: null,
+                endDate: null,
+                asins: [],
+            }),
+        };
     }
 
     /**

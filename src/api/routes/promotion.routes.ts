@@ -39,6 +39,16 @@ export function createPromotionRoutes(controller: PromotionController): Router {
     );
 
     /**
+     * DELETE /api/promotions/jobs/by-promotion/:promotionId/cleanup
+     * Clean up child jobs while preserving parent job
+     */
+    router.delete(
+        '/jobs/by-promotion/:promotionId/cleanup',
+        ValidateRequest.promotionId,
+        (req, res, next) => controller.cleanupPromotionJobs(req, res, next)
+    );
+
+    /**
      * GET /api/promotions/:promotionId
      * Get cached promotion data
      */

@@ -411,9 +411,12 @@ describe('JobManager', () => {
             jobManager = new JobManager(mockStorage, 10);
         });
 
-        it('should clear old completed jobs', async () => {
+        it('should clear old completed child jobs', async () => {
             const executor = jest.fn().mockResolvedValue('result');
-            const job = await jobManager.createJob('test', executor);
+            // Create a CHILD job (with parentJobId) - these get cleared
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId: 'parent-123',
+            });
 
             // Wait for job to complete
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -426,9 +429,27 @@ describe('JobManager', () => {
             expect(mockStorage.delete).toHaveBeenCalled();
         });
 
+        it('should not clear parent jobs (jobs without parentJobId)', async () => {
+            const executor = jest.fn().mockResolvedValue('result');
+            // Create a PARENT job (without parentJobId) - these NEVER get cleared
+            const job = await jobManager.createJob('test', executor);
+
+            // Wait for job to complete
+            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            // Try to clear jobs older than 0 minutes
+            await jobManager.clearCompletedJobs(0);
+
+            // Parent job should still exist
+            const retrievedJob = await jobManager.getJob(job.id);
+            expect(retrievedJob).not.toBeNull();
+        });
+
         it('should not clear recent completed jobs', async () => {
             const executor = jest.fn().mockResolvedValue('result');
-            const job = await jobManager.createJob('test', executor);
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId: 'parent-456',
+            });
 
             // Wait for job to complete
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -446,7 +467,9 @@ describe('JobManager', () => {
                 .mockImplementation(
                     () => new Promise((resolve) => setTimeout(() => resolve('result'), 1000))
                 );
-            const job = await jobManager.createJob('test', executor);
+            const job = await jobManager.createJob('test', executor, {
+                parentJobId: 'parent-789',
+            });
 
             await jobManager.clearCompletedJobs(0);
 
@@ -457,7 +480,9 @@ describe('JobManager', () => {
         it('should log cleared count', async () => {
             const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
             const executor = jest.fn().mockResolvedValue('result');
-            await jobManager.createJob('test', executor);
+            await jobManager.createJob('test', executor, {
+                parentJobId: 'parent-999',
+            });
 
             // Wait for job to complete
             await new Promise((resolve) => setTimeout(resolve, 100));
@@ -465,7 +490,7 @@ describe('JobManager', () => {
             await jobManager.clearCompletedJobs(0);
 
             expect(consoleLogSpy).toHaveBeenCalledWith(
-                expect.stringContaining('Cleared 1 completed jobs')
+                expect.stringContaining('Cleared 1 completed child jobs')
             );
 
             consoleLogSpy.mockRestore();
