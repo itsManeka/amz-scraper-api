@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.5.5](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.4...v1.5.5) (2025-10-29)
+
+
+### Bug Fixes
+
+* reduce more memory leak, improve the show more button usage and resume scraping after restart. ([d315617](https://github.com/itsManeka/amz-scraper-api/commit/d315617bb8ca30d8e8d3b6f2050595213f467dff))
+
 ## [1.5.4](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.3...v1.5.4) (2025-10-29)
 
 
