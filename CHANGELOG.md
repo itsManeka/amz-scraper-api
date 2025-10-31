@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.1](https://github.com/itsManeka/amz-scraper-api/compare/v1.6.0...v1.6.1) (2025-10-31)
+
+
+### Bug Fixes
+
+* rise subcategory timeout and fix discount info parse element ([afda3ce](https://github.com/itsManeka/amz-scraper-api/commit/afda3ceb2c98cf1eddd15d4baae0e77219eeab35))
+
 ## [1.6.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.5...v1.6.0) (2025-10-30)
 
 
