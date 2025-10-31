@@ -252,7 +252,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                 // Extract basic promotion data
                 const { title, details } = this.parser.parsePromotionDetails(html);
                 const { type: discountType, value: discountValue } =
-                    this.parser.parseDiscountInfo(details);
+                    this.parser.parseDiscountInfo(title);
                 const { startDate, endDate } = this.parser.parseDates(details);
 
                 // Extract subcategories from sidebar filters
@@ -493,7 +493,7 @@ export class BrowserPromotionRepository implements IPromotionRepository {
                         '[BrowserPromotionRepository] Subcategory filter clicked successfully, waiting for page update'
                     );
                     // Wait for the page to update after clicking the subcategory filter
-                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                    await new Promise((resolve) => setTimeout(resolve, 5000));
                     return; // Success, exit function
                 } else {
                     throw new Error(`Subcategory element not found in DOM: ${subcategory}`);

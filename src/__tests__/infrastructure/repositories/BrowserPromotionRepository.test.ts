@@ -138,7 +138,7 @@ describe('BrowserPromotionRepository', () => {
             const promise = repository.getPromotionById('ABC123', 'Livros', 'Mangá');
 
             // Fast-forward through subcategory filter setTimeout
-            await jest.advanceTimersByTimeAsync(2000);
+            await jest.advanceTimersByTimeAsync(5000);
             // Fast-forward through clickShowMoreButton setTimeout calls
             await jest.advanceTimersByTimeAsync(2000);
             // Fast-forward through scrollToLoadProducts setTimeouts
