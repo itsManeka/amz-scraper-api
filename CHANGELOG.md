@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.6.0](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.5...v1.6.0) (2025-10-30)
+
+
+### Features
+
+* refactoring to improve usability ([c225a10](https://github.com/itsManeka/amz-scraper-api/commit/c225a10b20428e962c9933a85615d37229442e49))
+
 ## [1.5.5](https://github.com/itsManeka/amz-scraper-api/compare/v1.5.4...v1.5.5) (2025-10-29)
 
 
